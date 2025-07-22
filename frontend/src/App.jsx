@@ -1,35 +1,112 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider } from '@mui/material/styles';
+import { CssBaseline } from '@mui/material';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { es } from 'date-fns/locale';
+
+// Theme
+import theme from './theme';
+
+// Contexts
+import { AuthProvider } from './contexts/AuthContext';
+
+// Components
+import ProtectedRoute from './components/ProtectedRoute';
+
+// Pages
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Dashboard from './pages/Dashboard';
+import Campos from './pages/Campos';
+import Vacunos from './pages/Vacunos';
+import Vacunas from './pages/Vacunas';
+import Transferencias from './pages/Transferencias';
+import Ventas from './pages/Ventas';
+import PreciosMercado from './pages/PreciosMercado';
+
+// Constants
+import { ROUTES } from './constants';
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
+        <AuthProvider>
+          <Router>
+            <Routes>
+              {/* Rutas públicas */}
+              <Route path={ROUTES.LOGIN} element={<Login />} />
+              <Route path={ROUTES.REGISTER} element={<Register />} />
+              
+              {/* Rutas protegidas */}
+              <Route
+                path={ROUTES.DASHBOARD}
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path={ROUTES.CAMPOS}
+                element={
+                  <ProtectedRoute>
+                    <Campos />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path={ROUTES.VACUNOS}
+                element={
+                  <ProtectedRoute>
+                    <Vacunos />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path={ROUTES.VACUNAS}
+                element={
+                  <ProtectedRoute>
+                    <Vacunas />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path={ROUTES.TRANSFERENCIAS}
+                element={
+                  <ProtectedRoute>
+                    <Transferencias />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path={ROUTES.VENTAS}
+                element={
+                  <ProtectedRoute>
+                    <Ventas />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path={ROUTES.PRECIOS_MERCADO}
+                element={
+                  <ProtectedRoute>
+                    <PreciosMercado />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Ruta por defecto */}
+              <Route path="*" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+            </Routes>
+          </Router>
+        </AuthProvider>
+      </LocalizationProvider>
+    </ThemeProvider>
+  );
 }
 
-export default App
+export default App;
