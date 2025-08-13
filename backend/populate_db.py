@@ -4,10 +4,22 @@ Script para poblar la base de datos con datos de ejemplo
 Ejecutar con: python manage.py shell < populate_db.py
 """
 
-from django.contrib.auth.models import User
-from ganado.models import Campo, Vacuno, EstadoVacuno, EstadiaAnimal, Vacuna, Vacunacion, Transferencia, Venta, PrecioMercado
-from datetime import date, timedelta
 import random
+from datetime import date, timedelta
+
+from django.contrib.auth.models import User
+
+from ganado.models import (
+    Campo,
+    EstadiaAnimal,
+    EstadoVacuno,
+    PrecioMercado,
+    Transferencia,
+    Vacuna,
+    Vacunacion,
+    Vacuno,
+    Venta,
+)
 
 # Limpiar datos existentes (opcional)
 print("Limpiando datos existentes...")

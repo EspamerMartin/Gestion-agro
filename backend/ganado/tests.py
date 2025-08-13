@@ -1,9 +1,21 @@
-from django.test import TestCase
-from django.core.exceptions import ValidationError
-from django.db import IntegrityError
 from datetime import date
 from decimal import Decimal
-from .models import Campo, Vacuno, EstadoVacuno, EstadiaAnimal, Vacuna, Vacunacion, Transferencia, Venta, PrecioMercado
+
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
+from django.test import TestCase
+
+from .models import (
+    Campo,
+    EstadiaAnimal,
+    EstadoVacuno,
+    PrecioMercado,
+    Transferencia,
+    Vacuna,
+    Vacunacion,
+    Vacuno,
+    Venta,
+)
 
 
 class CampoModelTest(TestCase):

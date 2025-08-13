@@ -1,8 +1,17 @@
 from rest_framework import serializers
+
 from .models import (
-    Campo, Vacuno, EstadoVacuno, EstadiaAnimal, 
-    Vacuna, Vacunacion, Transferencia, Venta, PrecioMercado
+    Campo,
+    EstadiaAnimal,
+    EstadoVacuno,
+    PrecioMercado,
+    Transferencia,
+    Vacuna,
+    Vacunacion,
+    Vacuno,
+    Venta,
 )
+
 
 class CampoSerializer(serializers.ModelSerializer):
     vacunos_actuales = serializers.ReadOnlyField()

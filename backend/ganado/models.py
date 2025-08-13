@@ -1,10 +1,14 @@
 from django.db import models
 
+
 class Campo(models.Model):
     nombre = models.CharField(max_length=50, unique=True)
     ubicacion = models.CharField(max_length=255)  # Ej: "La Pampa RN9 KM70"
     hectareas = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     descripcion = models.TextField(blank=True)
+
+    def __str__(self):
+        return self.nombre
 
     def vacunos_actuales(self):
         """Devuelve los vacunos que están actualmente en este campo"""
@@ -13,9 +17,6 @@ class Campo(models.Model):
     def capacidad_actual(self):
         """Cantidad de vacunos actualmente en el campo"""
         return self.vacunos_actuales().count()
-
-    def __str__(self):
-        return self.nombre
 
 class Vacuno(models.Model):
     SEXO_CHOICES = (
@@ -31,6 +32,9 @@ class Vacuno(models.Model):
     )
     fecha_ingreso = models.DateField()
     observaciones = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.caravana} - {self.raza}"
 
     # Acceso al historial de estados:
     # Gracias a related_name="historial_estados" en EstadoVacuno,
@@ -64,9 +68,6 @@ class Vacuno(models.Model):
         """Verifica si el animal está vendido"""
         estado = self.estado_actual()
         return estado and estado.estado_general == 'vendido'
-
-    def __str__(self):
-        return f"{self.caravana} - {self.raza}"
 
 
 # Modelo para historial de estados del vacuno

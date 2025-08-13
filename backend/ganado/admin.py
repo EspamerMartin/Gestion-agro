@@ -1,5 +1,17 @@
 from django.contrib import admin
-from .models import Campo, Vacuno, EstadoVacuno, EstadiaAnimal, Vacuna, Vacunacion, Transferencia, Venta, PrecioMercado
+
+from .models import (
+    Campo,
+    EstadiaAnimal,
+    EstadoVacuno,
+    PrecioMercado,
+    Transferencia,
+    Vacuna,
+    Vacunacion,
+    Vacuno,
+    Venta,
+)
+
 
 @admin.register(Campo)
 class CampoAdmin(admin.ModelAdmin):

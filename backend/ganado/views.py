@@ -1,20 +1,37 @@
-from rest_framework import viewsets
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from django.db.models import Sum, Avg
-from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal
 
+from django.db.models import Avg, Sum
+from django.utils import timezone
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
 from .models import (
-    Campo, Vacuno, EstadoVacuno, EstadiaAnimal,
-    Vacuna, Vacunacion, Transferencia, Venta, PrecioMercado
+    Campo,
+    EstadiaAnimal,
+    EstadoVacuno,
+    PrecioMercado,
+    Transferencia,
+    Vacuna,
+    Vacunacion,
+    Vacuno,
+    Venta,
 )
 from .serializers import (
-    CampoSerializer, VacunoSerializer, EstadoVacunoSerializer, EstadiaAnimalSerializer,
-    VacunaSerializer, VacunacionSerializer, TransferenciaSerializer, VentaSerializer,
-    PrecioMercadoSerializer, DashboardStatsSerializer, OpcionesSerializer
+    CampoSerializer,
+    DashboardStatsSerializer,
+    EstadiaAnimalSerializer,
+    EstadoVacunoSerializer,
+    OpcionesSerializer,
+    PrecioMercadoSerializer,
+    TransferenciaSerializer,
+    VacunacionSerializer,
+    VacunaSerializer,
+    VacunoSerializer,
+    VentaSerializer,
 )
+
 
 class CampoViewSet(viewsets.ModelViewSet):
     queryset = Campo.objects.all()
@@ -202,10 +219,7 @@ class DashboardViewSet(viewsets.ViewSet):
         ).count()
         
         # Promedio de vacunos por campo
-        if total_campos > 0:
-            promedio_vacunos = total_vacunos / total_campos
-        else:
-            promedio_vacunos = 0
+        promedio_vacunos = total_vacunos / total_campos if total_campos > 0 else 0
         
         # Valor total estimado (precio promedio * vacunos activos)
         precio_promedio = PrecioMercado.objects.filter(

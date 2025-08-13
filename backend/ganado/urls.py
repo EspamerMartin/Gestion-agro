@@ -1,9 +1,18 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
 from .views import (
-    CampoViewSet, VacunoViewSet, EstadoVacunoViewSet, EstadiaAnimalViewSet,
-    VacunaViewSet, VacunacionViewSet, TransferenciaViewSet, VentaViewSet,
-    PrecioMercadoViewSet, DashboardViewSet, OpcionesViewSet
+    CampoViewSet,
+    DashboardViewSet,
+    EstadiaAnimalViewSet,
+    EstadoVacunoViewSet,
+    OpcionesViewSet,
+    PrecioMercadoViewSet,
+    TransferenciaViewSet,
+    VacunacionViewSet,
+    VacunaViewSet,
+    VacunoViewSet,
+    VentaViewSet,
 )
 
 # Crear el router para las APIs
