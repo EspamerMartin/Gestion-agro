@@ -58,9 +58,9 @@ const VentaDialog = ({ open, onClose, onSave }) => {
           opcionesApi.getCampos(),
           opcionesApi.getLotes()
         ]);
-        setRazasDisponibles(razasRes.data);
-        setCamposDisponibles(camposRes.data);
-        setLotesDisponibles(lotesRes.data);
+        setRazasDisponibles(razasRes || []);
+        setCamposDisponibles(camposRes || []);
+        setLotesDisponibles(lotesRes || []);
       } catch (error) {
         console.error('Error cargando opciones:', error);
       }
@@ -332,7 +332,7 @@ const Ventas = () => {
     try {
       setLoading(true);
       const response = await ventasApi.getAll();
-      setVentas(response.data);
+      setVentas(response || []);
     } catch (error) {
       setError('Error al cargar las ventas');
       console.error(error);
@@ -361,11 +361,11 @@ const Ventas = () => {
   };
 
   const getTotalVentas = () => {
-    return ventas.reduce((total, venta) => total + (venta.precio_total || 0), 0);
+    return (ventas || []).reduce((total, venta) => total + (venta.precio || 0), 0);
   };
 
   const getTotalAnimales = () => {
-    return ventas.reduce((total, venta) => total + (venta.cantidad || 0), 0);
+    return (ventas || []).reduce((total, venta) => total + 1, 0);
   };
 
   if (loading) {

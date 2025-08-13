@@ -232,15 +232,57 @@ class DashboardViewSet(viewsets.ViewSet):
         
         valor_total_estimado = precio_promedio * vacunos_activos
         
+        # Datos adicionales para el dashboard
+        # Animales por campo
+        animales_por_campo = []
+        for campo in Campo.objects.all():
+            animales_por_campo.append({
+                'campo': campo.nombre,
+                'animales': campo.capacidad_actual(),
+                'hectareas': float(campo.hectareas or 0),
+            })
+        
+        # Animales por ciclo productivo
+        from django.db.models import Count
+        ciclos_data = EstadoVacuno.objects.values('ciclo_productivo').annotate(
+            count=Count('vacuno', distinct=True)
+        ).filter(ciclo_productivo__isnull=False)
+        
+        animales_por_ciclo = []
+        for ciclo in ciclos_data:
+            if ciclo['ciclo_productivo']:
+                animales_por_ciclo.append({
+                    'ciclo': ciclo['ciclo_productivo'],
+                    'value': ciclo['count'],
+                })
+        
+        # Capacidad de campos
+        capacidad_campos = []
+        for campo in Campo.objects.all():
+            capacidad_utilizada = campo.capacidad_actual()
+            capacidad_maxima = int(campo.hectareas or 0) * 2  # Asumiendo 2 animales por hectárea como máximo
+            capacidad_porcentaje = (capacidad_utilizada / capacidad_maxima * 100) if capacidad_maxima > 0 else 0
+            
+            capacidad_campos.append({
+                'campo': campo.nombre,
+                'capacidad_usada': round(capacidad_porcentaje, 1),
+                'animales_actuales': capacidad_utilizada,
+                'capacidad_maxima': capacidad_maxima,
+            })
+        
         stats_data = {
             'total_campos': total_campos,
             'total_vacunos': total_vacunos,
+            'total_animales': total_vacunos,  # Alias para compatibilidad frontend
             'vacunos_vendidos': vacunos_vendidos,
             'ventas_mes_actual': ventas_mes,
             'transferencias_mes_actual': transferencias_mes,
             'vacunaciones_mes_actual': vacunaciones_mes,
             'promedio_vacunos_por_campo': round(promedio_vacunos, 1),
-            'valor_total_estimado': valor_total_estimado
+            'valor_total_estimado': valor_total_estimado,
+            'animales_por_campo': animales_por_campo,
+            'animales_por_ciclo': animales_por_ciclo,
+            'capacidad_campos': capacidad_campos,
         }
         
         serializer = DashboardStatsSerializer(stats_data)

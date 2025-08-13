@@ -180,9 +180,12 @@ const DeleteCampoDialog = ({ open, onClose, campo, onDelete }) => {
   const handleDelete = async () => {
     setLoading(true);
     try {
+      console.log('Eliminando campo con ID:', campo.id);
       await camposApi.delete(campo.id);
-      onDelete();
+      console.log('Campo eliminado exitosamente');
       onClose();
+      // Forzar refresh inmediato
+      await onDelete();
     } catch (err) {
       console.error('Error deleting campo:', err);
     } finally {
@@ -231,9 +234,11 @@ const Campos = () => {
 
   const loadCampos = async () => {
     try {
+      console.log('Cargando campos...');
       setLoading(true);
       const response = await camposApi.getAll();
-      setCampos(response.data);
+      console.log('Campos cargados:', response);
+      setCampos(response || []);
     } catch (err) {
       setError('Error al cargar los campos');
       console.error('Error loading campos:', err);

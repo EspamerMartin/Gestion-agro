@@ -23,18 +23,19 @@ class Vacuno(models.Model):
         ("M", "Macho"),
         ("H", "Hembra"),
     )
-    caravana = models.CharField(max_length=50, unique=True)
+    lote_id = models.CharField(max_length=50, help_text="Identificador del lote")
     raza = models.CharField(max_length=50)
+    cantidad = models.PositiveIntegerField(default=1, help_text="Cantidad de animales en el lote")
     fecha_nacimiento = models.DateField(null=True, blank=True)
     sexo = models.CharField(
         max_length=1,
         choices=SEXO_CHOICES
     )
     fecha_ingreso = models.DateField()
-    observaciones = models.TextField(blank=True)
+    observaciones = models.TextField(blank=True, default="")
 
     def __str__(self):
-        return f"{self.caravana} - {self.raza}"
+        return f"Lote {self.lote_id} - {self.raza} ({self.cantidad} animales)"
 
     # Acceso al historial de estados:
     # Gracias a related_name="historial_estados" en EstadoVacuno,

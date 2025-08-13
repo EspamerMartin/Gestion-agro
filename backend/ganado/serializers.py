@@ -14,13 +14,12 @@ from .models import (
 
 
 class CampoSerializer(serializers.ModelSerializer):
-    vacunos_actuales = serializers.ReadOnlyField()
     capacidad_actual = serializers.ReadOnlyField()
     
     class Meta:
         model = Campo
         fields = ['id', 'nombre', 'ubicacion', 'hectareas', 'descripcion', 
-                 'vacunos_actuales', 'capacidad_actual']
+                 'capacidad_actual']
 
 class EstadoVacunoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -44,7 +43,7 @@ class VacunoSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Vacuno
-        fields = ['id', 'caravana', 'raza', 'sexo', 'fecha_nacimiento', 
+        fields = ['id', 'lote_id', 'raza', 'cantidad', 'sexo', 'fecha_nacimiento', 
                  'fecha_ingreso', 'observaciones', 'estado_actual_obj', 
                  'campo_actual_obj', 'edad_aproximada', 'es_vendido']
     
@@ -60,31 +59,31 @@ class VacunaSerializer(serializers.ModelSerializer):
         fields = ['id', 'nombre', 'laboratorio', 'descripcion']
 
 class VacunacionSerializer(serializers.ModelSerializer):
-    animal_caravana = serializers.CharField(source='animal.caravana', read_only=True)
+    animal_lote_id = serializers.CharField(source='animal.lote_id', read_only=True)
     vacuna_nombre = serializers.CharField(source='vacuna.nombre', read_only=True)
     
     class Meta:
         model = Vacunacion
-        fields = ['id', 'animal', 'animal_caravana', 'vacuna', 
+        fields = ['id', 'animal', 'animal_lote_id', 'vacuna', 
                  'vacuna_nombre', 'fecha', 'dosis', 'observaciones']
 
 class TransferenciaSerializer(serializers.ModelSerializer):
-    animal_caravana = serializers.CharField(source='animal.caravana', read_only=True)
+    animal_lote_id = serializers.CharField(source='animal.lote_id', read_only=True)
     campo_origen_nombre = serializers.CharField(source='campo_origen.nombre', read_only=True)
     campo_destino_nombre = serializers.CharField(source='campo_destino.nombre', read_only=True)
     
     class Meta:
         model = Transferencia
-        fields = ['id', 'animal', 'animal_caravana', 'campo_origen', 
+        fields = ['id', 'animal', 'animal_lote_id', 'campo_origen', 
                  'campo_origen_nombre', 'campo_destino', 'campo_destino_nombre', 
                  'fecha', 'observaciones']
 
 class VentaSerializer(serializers.ModelSerializer):
-    animal_caravana = serializers.CharField(source='animal.caravana', read_only=True)
+    animal_lote_id = serializers.CharField(source='animal.lote_id', read_only=True)
     
     class Meta:
         model = Venta
-        fields = ['id', 'animal', 'animal_caravana', 'fecha', 
+        fields = ['id', 'animal', 'animal_lote_id', 'fecha', 
                  'comprador', 'precio', 'destino', 'observaciones']
 
 class PrecioMercadoSerializer(serializers.ModelSerializer):
@@ -96,12 +95,16 @@ class PrecioMercadoSerializer(serializers.ModelSerializer):
 class DashboardStatsSerializer(serializers.Serializer):
     total_campos = serializers.IntegerField()
     total_vacunos = serializers.IntegerField()
+    total_animales = serializers.IntegerField()
     vacunos_vendidos = serializers.IntegerField()
     ventas_mes_actual = serializers.DecimalField(max_digits=12, decimal_places=2)
     transferencias_mes_actual = serializers.IntegerField()
     vacunaciones_mes_actual = serializers.IntegerField()
     promedio_vacunos_por_campo = serializers.FloatField()
     valor_total_estimado = serializers.DecimalField(max_digits=12, decimal_places=2)
+    animales_por_campo = serializers.ListField(child=serializers.DictField())
+    animales_por_ciclo = serializers.ListField(child=serializers.DictField())
+    capacidad_campos = serializers.ListField(child=serializers.DictField())
 
 class OpcionesSerializer(serializers.Serializer):
     campos = CampoSerializer(many=True)

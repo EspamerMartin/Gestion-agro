@@ -56,9 +56,9 @@ const TransferenciaDialog = ({ open, onClose, onSave }) => {
           opcionesApi.getCampos(),
           opcionesApi.getLotes()
         ]);
-        setRazasDisponibles(razasRes.data);
-        setCamposDisponibles(camposRes.data);
-        setLotesDisponibles(lotesRes.data);
+        setRazasDisponibles(razasRes || []);
+        setCamposDisponibles(camposRes || []);
+        setLotesDisponibles(lotesRes || []);
       } catch (error) {
         console.error('Error cargando opciones:', error);
       }
@@ -311,7 +311,7 @@ const Transferencias = () => {
     try {
       setLoading(true);
       const response = await transferenciasApi.getAll();
-      setTransferencias(response.data);
+      setTransferencias(response || []);
     } catch (error) {
       setError('Error al cargar las transferencias');
       console.error(error);
@@ -375,7 +375,7 @@ const Transferencias = () => {
                 Total de Transferencias
               </Typography>
               <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                {transferencias.length}
+                {transferencias?.length || 0}
               </Typography>
             </Paper>
           </Grid>

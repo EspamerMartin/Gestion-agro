@@ -127,7 +127,7 @@ const Dashboard = () => {
     try {
       setLoading(true);
       const response = await dashboardApi.getStats();
-      setStats(response.data);
+      setStats(response);
     } catch (err) {
       setError('Error al cargar estadísticas');
       console.error('Error loading stats:', err);
@@ -248,7 +248,7 @@ const Dashboard = () => {
           <Grid item xs={12} sm={6} lg={3}>
             <StatCard
               title="Total de Animales"
-              value={formatNumber(stats.total_animales)}
+              value={formatNumber(stats?.total_animales || 0)}
               subtitle="En toda la operación"
               icon={<PetsIcon />}
               color="primary"
@@ -257,7 +257,7 @@ const Dashboard = () => {
           <Grid item xs={12} sm={6} lg={3}>
             <StatCard
               title="Campos Activos"
-              value={formatNumber(stats.animales_por_campo.length)}
+              value={formatNumber(stats?.animales_por_campo?.length || 0)}
               subtitle="En operación actual"
               icon={<AgricultureIcon />}
               color="success"
@@ -266,7 +266,9 @@ const Dashboard = () => {
           <Grid item xs={12} sm={6} lg={3}>
             <StatCard
               title="Capacidad Promedio"
-              value={`${(stats.capacidad_campos.reduce((acc, campo) => acc + parseFloat(campo.capacidad_usada), 0) / stats.capacidad_campos.length).toFixed(1)}%`}
+              value={stats?.capacidad_campos?.length > 0 ? 
+                `${(stats.capacidad_campos.reduce((acc, campo) => acc + parseFloat(campo.capacidad_usada), 0) / stats.capacidad_campos.length).toFixed(1)}%` 
+                : '0%'}
               subtitle="De utilización"
               icon={<TrendingUpIcon />}
               color="warning"
@@ -275,7 +277,7 @@ const Dashboard = () => {
           <Grid item xs={12} sm={6} lg={3}>
             <StatCard
               title="Registros Totales"
-              value={formatNumber(stats.total_animales + stats.animales_por_campo.length)}
+              value={formatNumber((stats?.total_animales || 0) + (stats?.animales_por_campo?.length || 0))}
               subtitle="En la base de datos"
               icon={<AssignmentIcon />}
               color="info"
@@ -300,7 +302,7 @@ const Dashboard = () => {
               </Typography>
               <ResponsiveContainer width="100%" height="85%">
                 <BarChart 
-                  data={stats.animales_por_campo}
+                  data={stats?.animales_por_campo || []}
                   margin={{ 
                     top: 20, 
                     right: isDesktop ? 40 : 30, 
@@ -346,7 +348,7 @@ const Dashboard = () => {
               <ResponsiveContainer width="100%" height="85%">
                 <PieChart margin={{ top: 10, right: 10, bottom: 60, left: 10 }}>
                   <Pie
-                    data={stats.animales_por_ciclo}
+                    data={stats?.animales_por_ciclo || []}
                     cx="50%"
                     cy="40%"
                     labelLine={false}
@@ -354,11 +356,11 @@ const Dashboard = () => {
                     outerRadius={isDesktop ? 80 : (isMobile ? 60 : 70)}
                     innerRadius={isDesktop ? 35 : 25}
                     fill="#8884d8"
-                    dataKey="cantidad"
+                    dataKey="value"
                     stroke="white"
                     strokeWidth={2}
                   >
-                    {stats.animales_por_ciclo.map((entry, index) => (
+                    {(stats?.animales_por_ciclo || []).map((entry, index) => (
                       <Cell 
                         key={`cell-${index}`} 
                         fill={pieChartColors[index % pieChartColors.length]} 
@@ -398,7 +400,7 @@ const Dashboard = () => {
               </Typography>
               <ResponsiveContainer width="100%" height={isDesktop ? 400 : 350}>
                 <BarChart 
-                  data={stats.capacidad_campos}
+                  data={stats?.capacidad_campos || []}
                   margin={{ 
                     top: 20, 
                     right: isDesktop ? 40 : 30, 

@@ -20,7 +20,6 @@ import {
   CircularProgress,
   Tooltip,
   Grid,
-  Autocomplete,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -29,60 +28,29 @@ import {
   Vaccines as VaccinesIcon,
 } from '@mui/icons-material';
 import DashboardLayout from '../layouts/DashboardLayout';
-import { vacunasApi, opcionesApi } from '../services/api';
+import { vacunasApi } from '../services/api';
 
 const VacunaDialog = ({ open, onClose, vacuna, onSave }) => {
   const [formData, setFormData] = useState({
-    campo: '',
-    tipo_vacuna: '',
-    fecha_aplicacion: '',
-    veterinario: '',
-    observaciones: '',
-    cantidad_animales: '',
+    nombre: '',
+    laboratorio: '',
+    descripcion: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [vacunasDisponibles, setVacunasDisponibles] = useState([]);
-  const [camposDisponibles, setCamposDisponibles] = useState([]);
-
-  // Cargar opciones cuando se abre el diálogo
-  useEffect(() => {
-    const cargarOpciones = async () => {
-      try {
-        const [vacunasRes, camposRes] = await Promise.all([
-          opcionesApi.getVacunas(),
-          opcionesApi.getCampos()
-        ]);
-        setVacunasDisponibles(vacunasRes.data);
-        setCamposDisponibles(camposRes.data);
-      } catch (error) {
-        console.error('Error cargando opciones:', error);
-      }
-    };
-
-    if (open) {
-      cargarOpciones();
-    }
-  }, [open]);
 
   useEffect(() => {
     if (vacuna) {
       setFormData({
-        campo: vacuna.campo || '',
-        tipo_vacuna: vacuna.tipo_vacuna || '',
-        fecha_aplicacion: vacuna.fecha_aplicacion || new Date().toISOString().split('T')[0],
-        veterinario: vacuna.veterinario || '',
-        observaciones: vacuna.observaciones || '',
-        cantidad_animales: vacuna.cantidad_animales || '',
+        nombre: vacuna.nombre || '',
+        laboratorio: vacuna.laboratorio || '',
+        descripcion: vacuna.descripcion || '',
       });
     } else {
       setFormData({
-        campo: '',
-        tipo_vacuna: '',
-        fecha_aplicacion: new Date().toISOString().split('T')[0],
-        veterinario: '',
-        observaciones: '',
-        cantidad_animales: '',
+        nombre: '',
+        laboratorio: '',
+        descripcion: '',
       });
     }
     setError('');
@@ -129,107 +97,48 @@ const VacunaDialog = ({ open, onClose, vacuna, onSave }) => {
           )}
           
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                options={camposDisponibles.map(campo => campo.nombre)}
-                value={formData.campo}
-                onChange={(event, newValue) => {
-                  setFormData({ ...formData, campo: newValue || '' });
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    autoFocus
-                    margin="dense"
-                    label="Campo"
-                    variant="outlined"
-                    required
-                    fullWidth
-                    helperText="Campo donde se aplicará la vacuna"
-                  />
-                )}
-              />
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                options={vacunasDisponibles}
-                value={formData.tipo_vacuna}
-                onChange={(event, newValue) => {
-                  setFormData({ ...formData, tipo_vacuna: newValue || '' });
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    margin="dense"
-                    label="Tipo de Vacuna"
-                    variant="outlined"
-                    required
-                    fullWidth
-                    helperText="Seleccione el tipo de vacuna a aplicar"
-                  />
-                )}
-                freeSolo
-              />
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12}>
               <TextField
+                autoFocus
                 margin="dense"
-                name="fecha_aplicacion"
-                label="Fecha de Aplicación"
-                type="date"
-                fullWidth
-                variant="outlined"
-                value={formData.fecha_aplicacion}
-                onChange={handleChange}
-                required
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <TextField
-                margin="dense"
-                name="cantidad_animales"
-                label="Cantidad de Animales"
-                type="number"
-                fullWidth
-                variant="outlined"
-                value={formData.cantidad_animales}
-                onChange={handleChange}
-                required
-                inputProps={{ min: 1 }}
-                placeholder="Número de animales vacunados"
-              />
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <TextField
-                margin="dense"
-                name="veterinario"
-                label="Veterinario"
+                name="nombre"
+                label="Nombre de la Vacuna"
                 type="text"
                 fullWidth
                 variant="outlined"
-                value={formData.veterinario}
+                value={formData.nombre}
                 onChange={handleChange}
-                placeholder="Nombre del veterinario responsable"
+                required
+                helperText="Nombre de la vacuna (ej: Aftosa, Brucelosis, etc.)"
               />
             </Grid>
             
             <Grid item xs={12}>
               <TextField
                 margin="dense"
-                name="observaciones"
-                label="Observaciones"
+                name="laboratorio"
+                label="Laboratorio"
+                type="text"
+                fullWidth
+                variant="outlined"
+                value={formData.laboratorio}
+                onChange={handleChange}
+                helperText="Laboratorio fabricante (opcional)"
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                margin="dense"
+                name="descripcion"
+                label="Descripción"
                 multiline
                 rows={3}
                 fullWidth
                 variant="outlined"
-                value={formData.observaciones}
+                value={formData.descripcion}
                 onChange={handleChange}
-                placeholder="Observaciones sobre la vacunación, reacciones, etc."
+                helperText="Descripción de la vacuna, indicaciones, etc."
               />
             </Grid>
           </Grid>
@@ -311,7 +220,7 @@ const Vacunas = () => {
     try {
       setLoading(true);
       const response = await vacunasApi.getAll();
-      setVacunas(response.data);
+      setVacunas(response || []);
     } catch (err) {
       setError('Error al cargar las vacunas');
       console.error('Error loading vacunas:', err);
@@ -411,11 +320,9 @@ const Vacunas = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Campo</TableCell>
-                  <TableCell>Tipo de Vacuna</TableCell>
-                  <TableCell>Fecha</TableCell>
-                  <TableCell>Animales</TableCell>
-                  <TableCell>Veterinario</TableCell>
+                  <TableCell>Nombre</TableCell>
+                  <TableCell>Laboratorio</TableCell>
+                  <TableCell>Descripción</TableCell>
                   <TableCell align="center">Acciones</TableCell>
                 </TableRow>
               </TableHead>
@@ -426,25 +333,24 @@ const Vacunas = () => {
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <VaccinesIcon sx={{ mr: 1, color: 'primary.main' }} />
                         <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                          {vacuna.campo || 'N/A'}
+                          {vacuna.nombre || 'N/A'}
                         </Typography>
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                        {vacuna.tipo_vacuna || vacuna.nombre || 'N/A'}
+                      <Typography variant="body1">
+                        {vacuna.laboratorio || '-'}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      {vacuna.fecha_aplicacion || '-'}
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600 }}>
-                        {vacuna.cantidad_animales || 'N/A'} animales
+                      <Typography variant="body2" sx={{ maxWidth: 200 }}>
+                        {vacuna.descripcion ? 
+                          (vacuna.descripcion.length > 50 
+                            ? `${vacuna.descripcion.substring(0, 50)}...` 
+                            : vacuna.descripcion) 
+                          : '-'
+                        }
                       </Typography>
-                    </TableCell>
-                    <TableCell>
-                      {vacuna.veterinario || '-'}
                     </TableCell>
                     <TableCell align="center">
                       <Tooltip title="Editar">

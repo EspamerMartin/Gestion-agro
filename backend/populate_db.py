@@ -75,18 +75,20 @@ sexos = ["M", "H"]
 ciclos_productivos = ["ternero", "novillo", "toro", "ternera", "vaquillona", "vaca"]
 
 vacunos = []
-for i in range(50):  # Crear 50 vacunos
+for i in range(15):  # Crear 15 lotes
     # Crear fecha de nacimiento aleatoria (entre 6 meses y 5 años atrás)
     dias_atras = random.randint(180, 1825)
     fecha_nacimiento = date.today() - timedelta(days=dias_atras)
+    cantidad_animales = random.randint(5, 50)  # Entre 5 y 50 animales por lote
     
     vacuno = Vacuno.objects.create(
-        caravana=f"CAR{i+1:03d}",
+        lote_id=f"LOTE-{i+1:03d}",
         raza=random.choice(razas),
+        cantidad=cantidad_animales,
         sexo=random.choice(sexos),
         fecha_nacimiento=fecha_nacimiento,
         fecha_ingreso=fecha_nacimiento + timedelta(days=30),
-        observaciones=f"Animal número {i+1}"
+        observaciones=f"Lote de {cantidad_animales} animales - Lote número {i+1}"
     )
     vacunos.append(vacuno)
     

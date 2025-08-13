@@ -40,13 +40,15 @@ import { SEXO_CHOICES, CICLO_PRODUCTIVO_CHOICES, ESTADO_GENERAL_CHOICES } from '
 
 const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
   const [formData, setFormData] = useState({
+    lote_id: '',
     raza: '',
-    sexo: '',
     cantidad: 1,
+    sexo: '',
     fecha_nacimiento: '',
     fecha_ingreso: '',
-    ciclo_productivo: '',
     observaciones: '',
+    // Campos adicionales para el estado y estadia (no van en el modelo Vacuno directamente)
+    ciclo_productivo: '',
     campo: '',
   });
   const [loading, setLoading] = useState(false);
@@ -62,8 +64,8 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
           opcionesApi.getRazas(),
           opcionesApi.getCampos()
         ]);
-        setRazasDisponibles(razasRes.data);
-        setCamposDisponibles(camposRes.data);
+        setRazasDisponibles(razasRes || []);
+        setCamposDisponibles(camposRes || []);
       } catch (error) {
         console.error('Error cargando opciones:', error);
       }
@@ -77,24 +79,27 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
   useEffect(() => {
     if (vacuno) {
       setFormData({
+        lote_id: vacuno.lote_id || '',
         raza: vacuno.raza || '',
-        sexo: vacuno.sexo || '',
         cantidad: vacuno.cantidad || 1,
+        sexo: vacuno.sexo || '',
         fecha_nacimiento: formatDateForInput(vacuno.fecha_nacimiento) || '',
         fecha_ingreso: formatDateForInput(vacuno.fecha_ingreso) || '',
-        ciclo_productivo: vacuno.ciclo_productivo || '',
         observaciones: vacuno.observaciones || '',
-        campo: vacuno.campo || '',
+        // Campos adicionales del estado actual
+        ciclo_productivo: vacuno.estado_actual_obj?.ciclo_productivo || '',
+        campo: vacuno.campo_actual_obj?.id || '',
       });
     } else {
       setFormData({
+        lote_id: '',
         raza: '',
-        sexo: '',
         cantidad: 1,
+        sexo: '',
         fecha_nacimiento: '',
         fecha_ingreso: formatDateForInput(new Date()),
-        ciclo_productivo: '',
         observaciones: '',
+        ciclo_productivo: '',
         campo: '',
       });
     }
@@ -114,10 +119,21 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
     setLoading(true);
 
     try {
+      // Datos básicos del vacuno (campos del modelo Vacuno)
+      const vacunoData = {
+        lote_id: formData.lote_id,
+        raza: formData.raza,
+        cantidad: parseInt(formData.cantidad),
+        sexo: formData.sexo,
+        fecha_nacimiento: formData.fecha_nacimiento || null,
+        fecha_ingreso: formData.fecha_ingreso,
+        observaciones: formData.observaciones,
+      };
+
       if (vacuno) {
-        await vacunosApi.update(vacuno.id, formData);
+        await vacunosApi.update(vacuno.id, vacunoData);
       } else {
-        await vacunosApi.create(formData);
+        await vacunosApi.create(vacunoData);
       }
       onSave();
       onClose();
@@ -167,6 +183,21 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
             <Grid item xs={12} sm={6}>
               <TextField
                 margin="dense"
+                name="lote_id"
+                label="ID del Lote"
+                type="text"
+                fullWidth
+                variant="outlined"
+                value={formData.lote_id}
+                onChange={handleChange}
+                required
+                helperText="Ingrese el identificador del lote (ej: LOTE-001)"
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                margin="dense"
                 name="cantidad"
                 label="Cantidad de Animales"
                 type="number"
@@ -176,7 +207,7 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
                 onChange={handleChange}
                 required
                 inputProps={{ min: 1, max: 1000 }}
-                helperText="Ingrese la cantidad de animales del mismo lote"
+                helperText="Cantidad de animales en este lote"
               />
             </Grid>
             
@@ -220,7 +251,7 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
             
             <Grid item xs={12} sm={6}>
               <Autocomplete
-                options={camposDisponibles.map(campo => campo.nombre)}
+                options={(camposDisponibles || []).map(campo => campo.nombre)}
                 value={formData.campo}
                 onChange={(event, newValue) => {
                   setFormData({ ...formData, campo: newValue || '' });
@@ -362,7 +393,7 @@ const Vacunos = () => {
     try {
       setLoading(true);
       const response = await vacunosApi.getAll();
-      setVacunos(response.data);
+      setVacunos(response || []);
     } catch (err) {
       setError('Error al cargar los vacunos');
       console.error('Error loading vacunos:', err);
@@ -441,7 +472,7 @@ const Vacunos = () => {
           <Grid item xs={12} sm={3}>
             <Paper sx={{ p: 2, textAlign: 'center' }}>
               <Typography variant="h4" color="primary.main" sx={{ fontWeight: 600 }}>
-                {vacunos.length}
+                {vacunos?.length || 0}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Total de Lotes
@@ -504,7 +535,7 @@ const Vacunos = () => {
                         <PetsIcon sx={{ mr: 1, color: 'primary.main' }} />
                         <Box>
                           <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                            {vacuno.raza} - #{vacuno.id}
+                            {vacuno.lote_id}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
                             Ingreso: {formatDate(vacuno.fecha_ingreso)}

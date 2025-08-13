@@ -54,7 +54,7 @@ const PreciosMercado = () => {
     try {
       setLoading(true);
       const response = await preciosMercadoApi.getAll();
-      setPrecios(response.data);
+      setPrecios(response || []);
     } catch (err) {
       setError('Error al cargar los precios de mercado');
       console.error('Error loading precios:', err);
@@ -64,15 +64,15 @@ const PreciosMercado = () => {
   };
 
   const getCategorias = () => {
-    const categorias = [...new Set(precios.map(p => p.categoria))];
+    const categorias = [...new Set((precios || []).map(p => p.categoria))];
     return categorias;
   };
 
   const getPreciosFiltrados = () => {
     if (categoriaFiltro === 'todas') {
-      return precios;
+      return precios || [];
     }
-    return precios.filter(p => p.categoria === categoriaFiltro);
+    return (precios || []).filter(p => p.categoria === categoriaFiltro);
   };
 
   const getEvolucionPrecios = () => {

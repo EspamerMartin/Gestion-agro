@@ -21,8 +21,8 @@ class CampoAdmin(admin.ModelAdmin):
 
 @admin.register(Vacuno)
 class VacunoAdmin(admin.ModelAdmin):
-    list_display = ['caravana', 'raza', 'sexo', 'fecha_nacimiento', 'fecha_ingreso', 'campo_actual']
-    search_fields = ['caravana', 'raza']
+    list_display = ['lote_id', 'raza', 'cantidad', 'sexo', 'fecha_nacimiento', 'fecha_ingreso', 'campo_actual']
+    search_fields = ['lote_id', 'raza']
     list_filter = ['sexo', 'raza', 'fecha_ingreso']
     date_hierarchy = 'fecha_ingreso'
 
