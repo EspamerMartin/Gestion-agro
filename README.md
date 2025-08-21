@@ -4,7 +4,7 @@ Sistema completo para la gestión de ganado vacuno desarrollado con Django REST 
 
 ## Características
 
-- Gestión de animales con número de caravana, sus enfermedades y etapas de vida
+- Gestión de animales 
 - Control de campos y ubicaciones
 - Seguimiento de vacunación
 - Registro de ventas
