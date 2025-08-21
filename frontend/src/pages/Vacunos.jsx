@@ -47,8 +47,7 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
     fecha_nacimiento: '',
     fecha_ingreso: '',
     observaciones: '',
-    // Campos adicionales para el estado y estadia (no van en el modelo Vacuno directamente)
-    ciclo_productivo: '',
+    // Campo para seleccionar el campo
     campo: '',
   });
   const [loading, setLoading] = useState(false);
@@ -64,10 +63,13 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
           opcionesApi.getRazas(),
           opcionesApi.getCampos()
         ]);
+        console.log('Razas cargadas:', razasRes);
+        console.log('Campos cargados:', camposRes);
         setRazasDisponibles(razasRes || []);
         setCamposDisponibles(camposRes || []);
       } catch (error) {
         console.error('Error cargando opciones:', error);
+        setError('Error al cargar opciones del formulario');
       }
     };
 
@@ -86,8 +88,7 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
         fecha_nacimiento: formatDateForInput(vacuno.fecha_nacimiento) || '',
         fecha_ingreso: formatDateForInput(vacuno.fecha_ingreso) || '',
         observaciones: vacuno.observaciones || '',
-        // Campos adicionales del estado actual
-        ciclo_productivo: vacuno.estado_actual_obj?.ciclo_productivo || '',
+        // Campo actual
         campo: vacuno.campo_actual_obj?.id || '',
       });
     } else {
@@ -99,7 +100,6 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
         fecha_nacimiento: '',
         fecha_ingreso: formatDateForInput(new Date()),
         observaciones: '',
-        ciclo_productivo: '',
         campo: '',
       });
     }
@@ -119,26 +119,92 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
     setLoading(true);
 
     try {
+      // Validación de campos requeridos
+      if (!formData.lote_id) {
+        setError('El ID del lote es requerido');
+        return;
+      }
+      if (!formData.raza) {
+        setError('La raza es requerida');
+        return;
+      }
+      if (!formData.sexo) {
+        setError('El sexo es requerido');
+        return;
+      }
+      if (!formData.fecha_ingreso) {
+        setError('La fecha de ingreso es requerida');
+        return;
+      }
+
       // Datos básicos del vacuno (campos del modelo Vacuno)
       const vacunoData = {
-        lote_id: formData.lote_id,
-        raza: formData.raza,
-        cantidad: parseInt(formData.cantidad),
+        lote_id: formData.lote_id.trim(),
+        raza: formData.raza.trim(),
+        cantidad: parseInt(formData.cantidad) || 1,
         sexo: formData.sexo,
         fecha_nacimiento: formData.fecha_nacimiento || null,
         fecha_ingreso: formData.fecha_ingreso,
-        observaciones: formData.observaciones,
+        observaciones: formData.observaciones || '',
       };
 
+      // Debug: Mostrar datos que se van a enviar
+      console.log('Datos del formulario:', formData);
+      console.log('Datos a enviar:', vacunoData);
+
       if (vacuno) {
+        // Al editar, NO enviamos campo_inicial
         await vacunosApi.update(vacuno.id, vacunoData);
+        
+        // Si cambió el campo, usar el endpoint específico para cambio de campo
+        const campoActualId = vacuno.campo_actual_obj?.id;
+        const nuevoCampoId = formData.campo ? parseInt(formData.campo) : null;
+        
+        if (campoActualId !== nuevoCampoId && nuevoCampoId) {
+          try {
+            await vacunosApi.cambiarCampo(vacuno.id, nuevoCampoId);
+          } catch (transferError) {
+            console.warn('Error al transferir:', transferError);
+            // No fallar la actualización por error de transferencia
+          }
+        }
       } else {
+        // Al crear, validar que se haya seleccionado un campo
+        if (!formData.campo) {
+          setError('Debe seleccionar un campo para ubicar el lote');
+          return;
+        }
+        
+        // Al crear, SÍ enviamos campo_inicial
+        vacunoData.campo_inicial = parseInt(formData.campo);
+        console.log('Creando vacuno con campo_inicial:', vacunoData.campo_inicial);
+        console.log('Datos finales a enviar:', vacunoData);
         await vacunosApi.create(vacunoData);
       }
       onSave();
       onClose();
     } catch (err) {
-      setError(err.message || 'Error al guardar el vacuno');
+      console.error('Error al guardar:', err);
+      let errorMessage = 'Error al guardar el vacuno';
+      
+      if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      // Si hay detalles específicos del error de validación
+      if (err.response && err.response.data) {
+        const errorData = err.response.data;
+        if (typeof errorData === 'object') {
+          const firstError = Object.values(errorData)[0];
+          if (Array.isArray(firstError)) {
+            errorMessage = firstError[0];
+          } else if (typeof firstError === 'string') {
+            errorMessage = firstError;
+          }
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -231,30 +297,13 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
             </Grid>
             
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth margin="dense" variant="outlined">
-                <InputLabel>Ciclo Productivo</InputLabel>
-                <Select
-                  name="ciclo_productivo"
-                  value={formData.ciclo_productivo}
-                  onChange={handleChange}
-                  label="Ciclo Productivo"
-                  required
-                >
-                  {CICLO_PRODUCTIVO_CHOICES.map((choice) => (
-                    <MenuItem key={choice.value} value={choice.value}>
-                      {choice.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
               <Autocomplete
-                options={(camposDisponibles || []).map(campo => campo.nombre)}
-                value={formData.campo}
+                options={camposDisponibles || []}
+                value={camposDisponibles?.find(c => c.id === formData.campo) || null}
+                getOptionLabel={(option) => option.nombre || ''}
+                isOptionEqualToValue={(option, value) => option.id === value?.id}
                 onChange={(event, newValue) => {
-                  setFormData({ ...formData, campo: newValue || '' });
+                  setFormData({ ...formData, campo: newValue?.id || '' });
                 }}
                 renderInput={(params) => (
                   <TextField
@@ -556,14 +605,14 @@ const Vacunos = () => {
                       </Box>
                     </TableCell>
                     <TableCell>
-                      {vacuno.ciclo_productivo ? 
-                        CICLO_PRODUCTIVO_CHOICES.find(c => c.value === vacuno.ciclo_productivo)?.label 
+                      {vacuno.estado_actual_obj?.ciclo_productivo ? 
+                        CICLO_PRODUCTIVO_CHOICES.find(c => c.value === vacuno.estado_actual_obj.ciclo_productivo)?.label 
                         : '-'
                       }
                     </TableCell>
                     <TableCell>
                       <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                        {vacuno.campo || '-'}
+                        {vacuno.campo_actual_obj?.nombre || '-'}
                       </Typography>
                     </TableCell>
                     <TableCell align="center">

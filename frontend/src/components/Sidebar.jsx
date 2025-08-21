@@ -56,11 +56,6 @@ const menuItems = [
     icon: <AttachMoneyIcon />,
     path: ROUTES.VENTAS,
   },
-  {
-    text: 'Precios de Mercado',
-    icon: <TrendingUpIcon />,
-    path: ROUTES.PRECIOS_MERCADO,
-  },
 ];
 
 const Sidebar = () => {

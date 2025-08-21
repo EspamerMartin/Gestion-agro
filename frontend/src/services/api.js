@@ -35,7 +35,18 @@ const apiRequest = async (endpoint, options = {}) => {
         window.location.href = '/login';
         return;
       }
-      throw new Error(`HTTP error! status: ${response.status}`);
+      
+      // Intentar obtener detalles del error
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        const error = new Error(errorMessage);
+        error.response = { data: errorData };
+        throw error;
+      } catch (jsonError) {
+        // Si no se puede parsear como JSON, usar mensaje genérico
+        throw new Error(errorMessage);
+      }
     }
     
     const data = await response.json();
@@ -86,6 +97,10 @@ export const vacunosApi = {
   }),
   delete: (id) => apiRequest(`/vacunos/${id}/`, {
     method: 'DELETE',
+  }),
+  cambiarCampo: (id, campoId) => apiRequest(`/vacunos/${id}/cambiar_campo/`, {
+    method: 'POST',
+    body: JSON.stringify({ campo_id: campoId }),
   }),
 };
 
@@ -162,26 +177,6 @@ export const ventasApi = {
     body: JSON.stringify(data),
   }),
   delete: (id) => apiRequest(`/ventas/${id}/`, {
-    method: 'DELETE',
-  }),
-};
-
-// API para Precios de Mercado
-export const preciosMercadoApi = {
-  getAll: (params = {}) => {
-    const queryString = new URLSearchParams(params).toString();
-    return apiRequest(`/precios-mercado/${queryString ? `?${queryString}` : ''}`);
-  },
-  getById: (id) => apiRequest(`/precios-mercado/${id}/`),
-  create: (data) => apiRequest('/precios-mercado/', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  update: (id, data) => apiRequest(`/precios-mercado/${id}/`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  }),
-  delete: (id) => apiRequest(`/precios-mercado/${id}/`, {
     method: 'DELETE',
   }),
 };

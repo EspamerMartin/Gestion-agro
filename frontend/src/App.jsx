@@ -24,7 +24,6 @@ import Vacunos from './pages/Vacunos';
 import Vacunas from './pages/Vacunas';
 import Transferencias from './pages/Transferencias';
 import Ventas from './pages/Ventas';
-import PreciosMercado from './pages/PreciosMercado';
 
 // Constants
 import { ROUTES } from './constants';
@@ -87,14 +86,6 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Ventas />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path={ROUTES.PRECIOS_MERCADO}
-                element={
-                  <ProtectedRoute>
-                    <PreciosMercado />
                   </ProtectedRoute>
                 }
               />

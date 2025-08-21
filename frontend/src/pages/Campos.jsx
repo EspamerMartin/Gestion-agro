@@ -337,7 +337,7 @@ const Campos = () => {
           <Grid item xs={12} sm={4}>
             <Paper sx={{ p: 2, textAlign: 'center' }}>
               <Typography variant="h4" color="warning.main" sx={{ fontWeight: 600 }}>
-                {campos.reduce((sum, campo) => sum + (campo.capacidad_actual || 0), 0)}
+                {campos.reduce((sum, campo) => sum + (campo.total_animales || 0), 0)}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Animales Totales
@@ -355,7 +355,9 @@ const Campos = () => {
                   <TableCell>Nombre</TableCell>
                   <TableCell>Ubicación</TableCell>
                   <TableCell align="right">Hectáreas</TableCell>
-                  <TableCell align="right">Animales</TableCell>
+                  <TableCell align="right">Lotes</TableCell>
+                  <TableCell align="right">Total Animales</TableCell>
+                  <TableCell align="right">Animales/Ha</TableCell>
                   <TableCell align="center">Estado</TableCell>
                   <TableCell align="center">Acciones</TableCell>
                 </TableRow>
@@ -384,6 +386,12 @@ const Campos = () => {
                     </TableCell>
                     <TableCell align="right">
                       {campo.capacidad_actual || 0}
+                    </TableCell>
+                    <TableCell align="right">
+                      {campo.total_animales || 0}
+                    </TableCell>
+                    <TableCell align="right">
+                      {campo.animales_por_hectarea || 0}
                     </TableCell>
                     <TableCell align="center">
                       <Chip

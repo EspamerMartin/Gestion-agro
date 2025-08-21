@@ -3,15 +3,16 @@ from decimal import Decimal
 
 from django.db.models import Avg, Sum
 from django.utils import timezone
-from rest_framework import viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import (
     Campo,
     EstadiaAnimal,
     EstadoVacuno,
-    PrecioMercado,
     Transferencia,
     Vacuna,
     Vacunacion,
@@ -24,8 +25,8 @@ from .serializers import (
     EstadiaAnimalSerializer,
     EstadoVacunoSerializer,
     OpcionesSerializer,
-    PrecioMercadoSerializer,
     TransferenciaSerializer,
+    UserRegistrationSerializer,
     VacunacionSerializer,
     VacunaSerializer,
     VacunoSerializer,
@@ -57,6 +58,89 @@ class VacunoViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(raza__icontains=raza)
             
         return queryset
+    
+    def perform_create(self, serializer):
+        # Guardar el vacuno primero
+        vacuno = serializer.save()
+        
+        # Si se proporciona un campo_inicial, crear la estadia
+        campo_inicial_id = self.request.data.get('campo_inicial')
+        if campo_inicial_id:
+            try:
+                from .models import EstadiaAnimal
+                campo = Campo.objects.get(id=campo_inicial_id)
+                EstadiaAnimal.objects.create(
+                    animal=vacuno,
+                    campo=campo,
+                    fecha_entrada=vacuno.fecha_ingreso,
+                    observaciones=f"Ingreso inicial al campo {campo.nombre}"
+                )
+            except Campo.DoesNotExist:
+                pass  # Si el campo no existe, continuar sin crear la estadia
+        
+        # Crear estado inicial del vacuno
+        from .models import EstadoVacuno
+        EstadoVacuno.objects.create(
+            vacuno=vacuno,
+            ciclo_productivo='ternero',  # Estado inicial por defecto
+            estado_salud='sano',
+            estado_general='activo'
+        )
+    
+    def perform_update(self, serializer):
+        # Solo actualizar los datos básicos del vacuno
+        # No manejar cambios de campo aquí - eso se hace a través de transferencias
+        serializer.save()
+    
+    @action(detail=True, methods=['post'])
+    def cambiar_campo(self, request, pk=None):
+        """Endpoint para cambiar el campo de un vacuno mediante transferencia"""
+        vacuno = self.get_object()
+        nuevo_campo_id = request.data.get('campo_id')
+        
+        if not nuevo_campo_id:
+            return Response({'error': 'campo_id es requerido'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            from .models import EstadiaAnimal, Transferencia
+            from datetime import date
+            
+            nuevo_campo = Campo.objects.get(id=nuevo_campo_id)
+            campo_actual = vacuno.campo_actual()
+            
+            if campo_actual and campo_actual.id == nuevo_campo.id:
+                return Response({'message': 'El vacuno ya está en ese campo'}, status=status.HTTP_200_OK)
+            
+            # Cerrar estadia actual si existe
+            if campo_actual:
+                estadia_actual = vacuno.estadias.filter(fecha_salida__isnull=True).first()
+                if estadia_actual:
+                    estadia_actual.fecha_salida = date.today()
+                    estadia_actual.save()
+                
+                # Crear transferencia
+                Transferencia.objects.create(
+                    animal=vacuno,
+                    campo_origen=campo_actual,
+                    campo_destino=nuevo_campo,
+                    fecha=date.today(),
+                    observaciones=f"Transferencia automática via interfaz"
+                )
+            
+            # Crear nueva estadia
+            EstadiaAnimal.objects.create(
+                animal=vacuno,
+                campo=nuevo_campo,
+                fecha_entrada=date.today(),
+                observaciones=f"Transferido desde {campo_actual.nombre if campo_actual else 'sin campo'}"
+            )
+            
+            return Response({'message': 'Campo actualizado exitosamente'}, status=status.HTTP_200_OK)
+            
+        except Campo.DoesNotExist:
+            return Response({'error': 'Campo no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class EstadoVacunoViewSet(viewsets.ModelViewSet):
     queryset = EstadoVacuno.objects.all()
@@ -177,10 +261,6 @@ class VentaViewSet(viewsets.ModelViewSet):
             fecha_salida__isnull=True
         ).update(fecha_salida=venta.fecha)
 
-class PrecioMercadoViewSet(viewsets.ModelViewSet):
-    queryset = PrecioMercado.objects.all()
-    serializer_class = PrecioMercadoSerializer
-
 class DashboardViewSet(viewsets.ViewSet):
     """
     ViewSet para estadísticas del dashboard
@@ -196,10 +276,10 @@ class DashboardViewSet(viewsets.ViewSet):
         
         # Estadísticas básicas
         total_campos = Campo.objects.count()
-        total_vacunos = Vacuno.objects.count()
+        total_lotes = Vacuno.objects.count()  # Cada vacuno representa un lote
         
-        # Vacunos vendidos
-        vacunos_vendidos = Vacuno.objects.filter(
+        # Lotes vendidos
+        lotes_vendidos = Vacuno.objects.filter(
             historial_estados__estado_general='vendido'
         ).distinct().count()
         
@@ -218,71 +298,73 @@ class DashboardViewSet(viewsets.ViewSet):
             fecha__gte=inicio_mes
         ).count()
         
-        # Promedio de vacunos por campo
-        promedio_vacunos = total_vacunos / total_campos if total_campos > 0 else 0
-        
-        # Valor total estimado (precio promedio * vacunos activos)
-        precio_promedio = PrecioMercado.objects.filter(
-            fecha__gte=hoy - timedelta(days=30)
-        ).aggregate(promedio=Avg('precio'))['promedio'] or Decimal('150000')
-        
-        vacunos_activos = Vacuno.objects.exclude(
-            historial_estados__estado_general='vendido'
-        ).distinct().count()
-        
-        valor_total_estimado = precio_promedio * vacunos_activos
+        # Promedio de lotes por campo
+        promedio_lotes_por_campo = total_lotes / total_campos if total_campos > 0 else 0
         
         # Datos adicionales para el dashboard
-        # Animales por campo
-        animales_por_campo = []
+        # Lotes por campo y animales por hectárea
+        lotes_por_campo = []
         for campo in Campo.objects.all():
-            animales_por_campo.append({
+            total_animales = sum([vacuno.cantidad for vacuno in campo.vacunos_actuales()])
+            total_lotes = campo.capacidad_actual()
+            animales_por_hectarea = total_animales / float(campo.hectareas) if campo.hectareas and campo.hectareas > 0 else 0
+            
+            lotes_por_campo.append({
                 'campo': campo.nombre,
-                'animales': campo.capacidad_actual(),
+                'lotes': total_lotes,
+                'total_animales': total_animales,
                 'hectareas': float(campo.hectareas or 0),
+                'animales_por_hectarea': round(animales_por_hectarea, 2),
             })
         
-        # Animales por ciclo productivo
+        # Lotes por ciclo productivo
         from django.db.models import Count
         ciclos_data = EstadoVacuno.objects.values('ciclo_productivo').annotate(
             count=Count('vacuno', distinct=True)
         ).filter(ciclo_productivo__isnull=False)
         
-        animales_por_ciclo = []
+        lotes_por_ciclo = []
         for ciclo in ciclos_data:
             if ciclo['ciclo_productivo']:
-                animales_por_ciclo.append({
+                lotes_por_ciclo.append({
                     'ciclo': ciclo['ciclo_productivo'],
                     'value': ciclo['count'],
                 })
         
-        # Capacidad de campos
-        capacidad_campos = []
+        # Densidad de animales por campo
+        densidad_campos = []
         for campo in Campo.objects.all():
-            capacidad_utilizada = campo.capacidad_actual()
-            capacidad_maxima = int(campo.hectareas or 0) * 2  # Asumiendo 2 animales por hectárea como máximo
-            capacidad_porcentaje = (capacidad_utilizada / capacidad_maxima * 100) if capacidad_maxima > 0 else 0
+            total_animales = sum([vacuno.cantidad for vacuno in campo.vacunos_actuales()])
+            animales_por_hectarea = total_animales / float(campo.hectareas) if campo.hectareas and campo.hectareas > 0 else 0
+            densidad_recomendada = 2.0  # animales por hectárea recomendado
+            porcentaje_densidad = (animales_por_hectarea / densidad_recomendada * 100) if densidad_recomendada > 0 else 0
             
-            capacidad_campos.append({
+            densidad_campos.append({
                 'campo': campo.nombre,
-                'capacidad_usada': round(capacidad_porcentaje, 1),
-                'animales_actuales': capacidad_utilizada,
-                'capacidad_maxima': capacidad_maxima,
+                'densidad_actual': round(animales_por_hectarea, 2),
+                'densidad_porcentaje': round(porcentaje_densidad, 1),
+                'total_animales': total_animales,
+                'hectareas': float(campo.hectareas or 0),
             })
         
         stats_data = {
             'total_campos': total_campos,
-            'total_vacunos': total_vacunos,
-            'total_animales': total_vacunos,  # Alias para compatibilidad frontend
-            'vacunos_vendidos': vacunos_vendidos,
+            'total_vacunos': total_lotes,  # Para compatibilidad frontend
+            'total_animales': total_lotes,  # Para compatibilidad frontend
+            'total_lotes': total_lotes,
+            'vacunos_vendidos': lotes_vendidos,
+            'lotes_vendidos': lotes_vendidos,
             'ventas_mes_actual': ventas_mes,
             'transferencias_mes_actual': transferencias_mes,
             'vacunaciones_mes_actual': vacunaciones_mes,
-            'promedio_vacunos_por_campo': round(promedio_vacunos, 1),
-            'valor_total_estimado': valor_total_estimado,
-            'animales_por_campo': animales_por_campo,
-            'animales_por_ciclo': animales_por_ciclo,
-            'capacidad_campos': capacidad_campos,
+            'promedio_vacunos_por_campo': round(promedio_lotes_por_campo, 1),
+            'promedio_lotes_por_campo': round(promedio_lotes_por_campo, 1),
+            'animales_por_campo': lotes_por_campo,  # Actualizado con nueva estructura
+            'lotes_por_campo': lotes_por_campo,
+            'animales_por_ciclo': lotes_por_ciclo,  # Para compatibilidad
+            'lotes_por_ciclo': lotes_por_ciclo,
+            'capacidad_campos': densidad_campos,  # Actualizado con densidad
+            'densidad_campos': densidad_campos,
         }
         
         serializer = DashboardStatsSerializer(stats_data)
@@ -350,3 +432,48 @@ class OpcionesViewSet(viewsets.ViewSet):
         
         serializer = OpcionesSerializer(opciones_data)
         return Response(serializer.data)
+
+
+class UserRegistrationView(APIView):
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        # Mapear los campos del frontend a los campos del modelo User
+        data = {
+            'username': request.data.get('email'),  # Usar email como username
+            'email': request.data.get('email'),
+            'first_name': request.data.get('name', '').split(' ')[0] if request.data.get('name') else '',
+            'last_name': ' '.join(request.data.get('name', '').split(' ')[1:]) if request.data.get('name') and len(request.data.get('name').split(' ')) > 1 else '',
+            'password': request.data.get('password'),
+            'confirm_password': request.data.get('password')  # No se envía confirm_password desde el frontend
+        }
+        
+        serializer = UserRegistrationSerializer(data=data)
+        if serializer.is_valid():
+            user = serializer.save()
+            return Response({
+                'message': 'Usuario registrado exitosamente',
+                'user_id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'name': f"{user.first_name} {user.last_name}".strip()
+            }, status=status.HTTP_201_CREATED)
+        
+        # Formatear errores para que sean más legibles en el frontend
+        formatted_errors = {}
+        for field, errors in serializer.errors.items():
+            if field == 'email':
+                formatted_errors['email'] = errors[0] if errors else 'Email inválido'
+            elif field == 'username':
+                formatted_errors['email'] = errors[0] if errors else 'Email ya está en uso'
+            elif field == 'password':
+                formatted_errors['password'] = errors[0] if errors else 'Contraseña inválida'
+            elif field == 'first_name':
+                formatted_errors['name'] = errors[0] if errors else 'Nombre es requerido'
+            else:
+                formatted_errors[field] = errors[0] if errors else f'Error en {field}'
+        
+        return Response({
+            'message': 'Error en los datos proporcionados',
+            'errors': formatted_errors
+        }, status=status.HTTP_400_BAD_REQUEST)

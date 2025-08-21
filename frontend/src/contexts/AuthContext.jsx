@@ -111,9 +111,39 @@ export const AuthProvider = ({ children }) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     
     try {
-      // Por ahora, Django no tiene endpoint de registro personalizado
-      // Se puede crear un usuario admin desde el backend
-      throw new Error('Registro no disponible. Contacte al administrador.');
+      const response = await fetch(`${API_BASE_URL}/auth/register/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        let errorMessage = 'Error al registrarse';
+        
+        if (errorData.errors) {
+          // Si hay errores específicos de campos, mostrar el primero
+          const firstError = Object.values(errorData.errors)[0];
+          errorMessage = firstError || errorData.message || 'Error al registrarse';
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+      const data = await response.json();
+      
+      // Después del registro exitoso, hacer login automáticamente
+      const loginResult = await login(userData.email, userData.password);
+      
+      if (loginResult.success) {
+        return { success: true };
+      } else {
+        return { success: false, error: 'Registro exitoso, pero error al iniciar sesión' };
+      }
     } catch (error) {
       dispatch({ type: 'SET_LOADING', payload: false });
       return { success: false, error: error.message };

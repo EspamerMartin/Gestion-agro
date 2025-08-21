@@ -11,7 +11,6 @@ export const ROUTES = {
   VACUNAS: '/vacunas',
   TRANSFERENCIAS: '/transferencias',
   VENTAS: '/ventas',
-  PRECIOS_MERCADO: '/precios-mercado',
 };
 
 export const SEXO_CHOICES = [

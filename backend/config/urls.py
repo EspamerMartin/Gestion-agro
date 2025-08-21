@@ -21,9 +21,12 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 
+from ganado.views import UserRegistrationView
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/auth/register/', UserRegistrationView.as_view(), name='user_register'),
     path('', include('ganado.urls')),
 ]

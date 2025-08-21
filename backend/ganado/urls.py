@@ -7,7 +7,6 @@ from .views import (
     EstadiaAnimalViewSet,
     EstadoVacunoViewSet,
     OpcionesViewSet,
-    PrecioMercadoViewSet,
     TransferenciaViewSet,
     VacunacionViewSet,
     VacunaViewSet,
@@ -25,7 +24,6 @@ router.register(r'vacunas', VacunaViewSet)
 router.register(r'vacunaciones', VacunacionViewSet)
 router.register(r'transferencias', TransferenciaViewSet)
 router.register(r'ventas', VentaViewSet)
-router.register(r'precios-mercado', PrecioMercadoViewSet)
 router.register(r'dashboard', DashboardViewSet, basename='dashboard')
 router.register(r'opciones', OpcionesViewSet, basename='opciones')
 

@@ -29,36 +29,31 @@ import {
   Agriculture as AgricultureIcon,
 } from '@mui/icons-material';
 import DashboardLayout from '../layouts/DashboardLayout';
-import { transferenciasApi, opcionesApi } from '../services/api';
+import { transferenciasApi, opcionesApi, vacunosApi } from '../services/api';
 import { formatDate, formatDateForInput } from '../utils';
 
 const TransferenciaDialog = ({ open, onClose, onSave }) => {
   const [formData, setFormData] = useState({
-    raza: '',
-    cantidad: 1,
-    campo_origen: '',
+    lote_id: '',
     campo_destino: '',
     fecha: formatDateForInput(new Date()),
     observaciones: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [razasDisponibles, setRazasDisponibles] = useState([]);
-  const [camposDisponibles, setCamposDisponibles] = useState([]);
   const [lotesDisponibles, setLotesDisponibles] = useState([]);
+  const [camposDisponibles, setCamposDisponibles] = useState([]);
 
   // Cargar opciones cuando se abre el diálogo
   useEffect(() => {
     const cargarOpciones = async () => {
       try {
-        const [razasRes, camposRes, lotesRes] = await Promise.all([
-          opcionesApi.getRazas(),
-          opcionesApi.getCampos(),
-          opcionesApi.getLotes()
+        const [lotesRes, camposRes] = await Promise.all([
+          opcionesApi.getLotes(),
+          opcionesApi.getCampos()
         ]);
-        setRazasDisponibles(razasRes || []);
-        setCamposDisponibles(camposRes || []);
         setLotesDisponibles(lotesRes || []);
+        setCamposDisponibles(camposRes || []);
       } catch (error) {
         console.error('Error cargando opciones:', error);
       }
@@ -72,9 +67,7 @@ const TransferenciaDialog = ({ open, onClose, onSave }) => {
   useEffect(() => {
     if (!open) {
       setFormData({
-        raza: '',
-        cantidad: 1,
-        campo_origen: '',
+        lote_id: '',
         campo_destino: '',
         fecha: formatDateForInput(new Date()),
         observaciones: '',
@@ -90,22 +83,16 @@ const TransferenciaDialog = ({ open, onClose, onSave }) => {
     });
   };
 
-  const getLoteDisponible = () => {
-    return lotesDisponibles.find(lote => 
-      lote.raza === formData.raza && 
-      lote.campo === formData.campo_origen &&
-      lote.estado_actual === 'activo'
-    );
-  };
-
-  const getCantidadDisponible = () => {
-    const lote = getLoteDisponible();
-    return lote ? lote.cantidad : 0;
+  const getLoteSeleccionado = () => {
+    return lotesDisponibles.find(lote => lote.lote_id === formData.lote_id);
   };
 
   const getCamposDisponiblesParaDestino = () => {
+    const loteSeleccionado = getLoteSeleccionado();
+    if (!loteSeleccionado) return camposDisponibles;
+    
     return camposDisponibles.filter(campo => 
-      campo.nombre !== formData.campo_origen
+      campo.id !== loteSeleccionado.campo_actual_obj?.id
     );
   };
 
@@ -115,31 +102,30 @@ const TransferenciaDialog = ({ open, onClose, onSave }) => {
     setLoading(true);
 
     try {
-      const cantidadDisponible = getCantidadDisponible();
-      if (formData.cantidad > cantidadDisponible) {
-        throw new Error(`No hay suficientes animales disponibles. Disponible: ${cantidadDisponible}`);
+      const loteSeleccionado = getLoteSeleccionado();
+      if (!loteSeleccionado) {
+        throw new Error('Debe seleccionar un lote para transferir');
       }
 
-      if (formData.campo_origen === formData.campo_destino) {
-        throw new Error('El campo de origen y destino no pueden ser el mismo');
+      if (!formData.campo_destino) {
+        throw new Error('Debe seleccionar un campo de destino');
       }
 
-      const transferenciaData = {
-        ...formData,
-        cantidad: parseInt(formData.cantidad),
-      };
+      if (loteSeleccionado.campo_actual_obj?.id === parseInt(formData.campo_destino)) {
+        throw new Error('El lote ya se encuentra en ese campo');
+      }
 
-      await transferenciasApi.create(transferenciaData);
+      // Usar el endpoint de cambiar campo que ya tenemos
+      await vacunosApi.cambiarCampo(loteSeleccionado.id, parseInt(formData.campo_destino));
       onSave();
       onClose();
     } catch (error) {
-      setError(error.message || 'Error al registrar la transferencia');
+      setError(error.message || 'Error al transferir el lote');
     } finally {
       setLoading(false);
     }
   };
 
-  const cantidadDisponible = getCantidadDisponible();
   const camposDestino = getCamposDisponiblesParaDestino();
 
   return (
@@ -160,47 +146,31 @@ const TransferenciaDialog = ({ open, onClose, onSave }) => {
           )}
           
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12}>
               <Autocomplete
-                options={razasDisponibles}
-                value={formData.raza}
-                onChange={(event, newValue) => {
-                  setFormData({ ...formData, raza: newValue || '' });
+                options={lotesDisponibles || []}
+                value={lotesDisponibles?.find(lote => lote.lote_id === formData.lote_id) || null}
+                getOptionLabel={(option) => {
+                  if (!option) return '';
+                  return `${option.lote_id} - ${option.raza} (${option.cantidad} animales) - Campo: ${option.campo_actual_obj?.nombre || 'Sin campo'}`;
                 }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    margin="dense"
-                    label="Raza"
-                    variant="outlined"
-                    required
-                    fullWidth
-                    helperText="Seleccione la raza de los animales"
-                  />
-                )}
-              />
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                options={camposDisponibles.map(campo => campo.nombre)}
-                value={formData.campo_origen}
+                isOptionEqualToValue={(option, value) => option?.id === value?.id}
                 onChange={(event, newValue) => {
                   setFormData({ 
                     ...formData, 
-                    campo_origen: newValue || '',
-                    campo_destino: '' // Reset destino cuando cambia origen
+                    lote_id: newValue?.lote_id || '',
+                    campo_destino: '' // Reset destino cuando cambia lote
                   });
                 }}
                 renderInput={(params) => (
                   <TextField
                     {...params}
                     margin="dense"
-                    label="Campo de Origen"
+                    label="Lote a Transferir"
                     variant="outlined"
                     required
                     fullWidth
-                    helperText="Campo donde se encuentran los animales"
+                    helperText="Seleccione el lote de animales que desea transferir"
                   />
                 )}
               />
@@ -208,12 +178,14 @@ const TransferenciaDialog = ({ open, onClose, onSave }) => {
             
             <Grid item xs={12} sm={6}>
               <Autocomplete
-                options={camposDestino.map(campo => campo.nombre)}
-                value={formData.campo_destino}
+                options={camposDestino || []}
+                value={camposDestino?.find(campo => campo.id === parseInt(formData.campo_destino)) || null}
+                getOptionLabel={(option) => option?.nombre || ''}
+                isOptionEqualToValue={(option, value) => option?.id === value?.id}
                 onChange={(event, newValue) => {
-                  setFormData({ ...formData, campo_destino: newValue || '' });
+                  setFormData({ ...formData, campo_destino: newValue?.id?.toString() || '' });
                 }}
-                disabled={!formData.campo_origen}
+                disabled={!formData.lote_id}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -222,32 +194,9 @@ const TransferenciaDialog = ({ open, onClose, onSave }) => {
                     variant="outlined"
                     required
                     fullWidth
-                    helperText="Campo al que se transferirán los animales"
+                    helperText="Seleccione el campo de destino para el lote"
                   />
                 )}
-              />
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <TextField
-                margin="dense"
-                name="cantidad"
-                label="Cantidad"
-                type="number"
-                fullWidth
-                variant="outlined"
-                value={formData.cantidad}
-                onChange={handleChange}
-                required
-                inputProps={{ min: 1, max: cantidadDisponible }}
-                helperText={
-                  cantidadDisponible > 0 
-                    ? `Disponible: ${cantidadDisponible} animales`
-                    : formData.raza && formData.campo_origen 
-                      ? "No hay animales disponibles para esta combinación"
-                      : "Seleccione raza y campo para ver disponibilidad"
-                }
-                error={formData.cantidad > cantidadDisponible}
               />
             </Grid>
             
@@ -290,10 +239,10 @@ const TransferenciaDialog = ({ open, onClose, onSave }) => {
           <Button 
             type="submit" 
             variant="contained" 
-            disabled={loading || formData.cantidad > cantidadDisponible || cantidadDisponible === 0}
+            disabled={loading || !formData.lote_id || !formData.campo_destino}
             startIcon={loading ? <CircularProgress size={20} /> : <SwapHorizIcon />}
           >
-            {loading ? 'Registrando...' : 'Registrar Transferencia'}
+            {loading ? 'Transfiriendo...' : 'Transferir Lote'}
           </Button>
         </DialogActions>
       </form>

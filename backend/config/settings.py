@@ -134,7 +134,7 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny',  # Para desarrollo, cambiar por IsAuthenticated en producción
+        'rest_framework.permissions.IsAuthenticated',  # Cambiar a IsAuthenticated para proteger APIs
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 100

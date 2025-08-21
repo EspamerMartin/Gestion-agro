@@ -265,11 +265,11 @@ const Dashboard = () => {
           </Grid>
           <Grid item xs={12} sm={6} lg={3}>
             <StatCard
-              title="Capacidad Promedio"
-              value={stats?.capacidad_campos?.length > 0 ? 
-                `${(stats.capacidad_campos.reduce((acc, campo) => acc + parseFloat(campo.capacidad_usada), 0) / stats.capacidad_campos.length).toFixed(1)}%` 
-                : '0%'}
-              subtitle="De utilización"
+              title="Promedio Animales/Ha"
+              value={stats?.lotes_por_campo?.length > 0 ? 
+                `${(stats.lotes_por_campo.reduce((acc, campo) => acc + parseFloat(campo.animales_por_hectarea || 0), 0) / stats.lotes_por_campo.length).toFixed(2)}` 
+                : '0'}
+              subtitle="Animales por hectárea"
               icon={<TrendingUpIcon />}
               color="warning"
             />
@@ -285,10 +285,9 @@ const Dashboard = () => {
           </Grid>
         </Grid>
 
-        {/* Charts - Optimizado para Desktop */}
+        {/* Charts - Solo gráfico de distribución por campo */}
         <Grid container spacing={4}>
-          {/* Primera fila - Gráficos principales */}
-          <Grid item xs={12} xl={8}>
+          <Grid item xs={12}>
             <Paper sx={{ 
               p: 4, 
               borderRadius: 3, 
@@ -302,7 +301,7 @@ const Dashboard = () => {
               </Typography>
               <ResponsiveContainer width="100%" height="85%">
                 <BarChart 
-                  data={stats?.animales_por_campo || []}
+                  data={stats?.lotes_por_campo || []}
                   margin={{ 
                     top: 20, 
                     right: isDesktop ? 40 : 30, 
@@ -322,126 +321,10 @@ const Dashboard = () => {
                   <YAxis tick={{ fontSize: isDesktop ? 14 : 12, fontWeight: 500 }} stroke={theme.palette.text.secondary} />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar 
-                    dataKey="cantidad" 
+                    dataKey="total_animales" 
                     fill={CHART_COLORS.primary}
                     radius={[6, 6, 0, 0]}
-                    name="Cantidad de Animales"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </Paper>
-          </Grid>
-
-          {/* Animales por Categoría (Vacas, Toros, Novillos, etc.) - Pie Chart */}
-          <Grid item xs={12} xl={4}>
-            <Paper sx={{ 
-              p: 3, 
-              borderRadius: 3, 
-              height: isDesktop ? 520 : (isMobile ? 450 : 480),
-              background: 'linear-gradient(135deg, #ffffff 0%, #f0fff4 100%)',
-              border: '1px solid',
-              borderColor: 'divider'
-            }}>
-              <Typography variant="h5" sx={{ mb: 2, fontWeight: 700, color: 'success.main' }}>
-                Distribución por Categoría
-              </Typography>
-              <ResponsiveContainer width="100%" height="85%">
-                <PieChart margin={{ top: 10, right: 10, bottom: 60, left: 10 }}>
-                  <Pie
-                    data={stats?.animales_por_ciclo || []}
-                    cx="50%"
-                    cy="40%"
-                    labelLine={false}
-                    label={renderCustomizedLabel}
-                    outerRadius={isDesktop ? 80 : (isMobile ? 60 : 70)}
-                    innerRadius={isDesktop ? 35 : 25}
-                    fill="#8884d8"
-                    dataKey="value"
-                    stroke="white"
-                    strokeWidth={2}
-                  >
-                    {(stats?.animales_por_ciclo || []).map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={pieChartColors[index % pieChartColors.length]} 
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    content={<CustomTooltip />}
-                    wrapperStyle={{ fontSize: '14px' }}
-                  />
-                  <Legend 
-                    verticalAlign="bottom" 
-                    height={60}
-                    wrapperStyle={{ 
-                      fontSize: isDesktop ? '12px' : '11px',
-                      fontWeight: '600',
-                      paddingTop: '15px'
-                    }}
-                    iconType="circle"
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </Paper>
-          </Grid>
-
-          {/* Segunda fila - Gráfico de capacidad más grande */}
-          <Grid item xs={12}>
-            <Paper sx={{ 
-              p: 4, 
-              borderRadius: 3,
-              background: 'linear-gradient(135deg, #ffffff 0%, #fff8f0 100%)',
-              border: '1px solid',
-              borderColor: 'divider'
-            }}>
-              <Typography variant="h5" sx={{ mb: 3, fontWeight: 700, color: 'warning.main' }}>
-                Capacidad y Utilización por Campo
-              </Typography>
-              <ResponsiveContainer width="100%" height={isDesktop ? 400 : 350}>
-                <BarChart 
-                  data={stats?.capacidad_campos || []}
-                  margin={{ 
-                    top: 20, 
-                    right: isDesktop ? 40 : 30, 
-                    left: isDesktop ? 30 : 20, 
-                    bottom: isMobile ? 80 : 60 
-                  }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} opacity={0.5} />
-                  <XAxis 
-                    dataKey="campo"
-                    tick={{ fontSize: isDesktop ? 14 : 12, fontWeight: 500 }}
-                    angle={isMobile ? -45 : 0}
-                    textAnchor={isMobile ? 'end' : 'middle'}
-                    height={isMobile ? 80 : 60}
-                    stroke={theme.palette.text.secondary}
-                  />
-                  <YAxis tick={{ fontSize: isDesktop ? 14 : 12, fontWeight: 500 }} stroke={theme.palette.text.secondary} />
-                  <Tooltip 
-                    content={<CustomTooltip />}
-                    formatter={(value, name) => [
-                      name === 'capacidad_usada' ? `${value}%` : value,
-                      name === 'capacidad_usada' ? 'Capacidad Usada' : 'Animales'
-                    ]}
-                  />
-                  <Legend 
-                    wrapperStyle={{ 
-                      fontSize: isDesktop ? '14px' : '12px',
-                      fontWeight: '600'
-                    }}
-                  />
-                  <Bar 
-                    dataKey="capacidad_usada" 
-                    fill={CHART_COLORS.warning} 
-                    name="Capacidad Usada (%)"
-                    radius={[6, 6, 0, 0]}
-                  />
-                  <Bar 
-                    dataKey="animales" 
-                    fill={CHART_COLORS.secondary} 
-                    name="Cantidad de Animales"
-                    radius={[6, 6, 0, 0]}
+                    name="Total de Animales"
                   />
                 </BarChart>
               </ResponsiveContainer>
