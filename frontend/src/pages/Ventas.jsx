@@ -353,7 +353,12 @@ const Ventas = () => {
     if (window.confirm('¿Está seguro de eliminar esta venta?')) {
       try {
         await ventasApi.delete(id);
-        loadVentas();
+        try {
+          await loadVentas();
+        } catch (reloadError) {
+          console.error('Error al recargar datos:', reloadError);
+          // No mostrar error por recarga, ya que la eliminación fue exitosa
+        }
       } catch (error) {
         setError('Error al eliminar la venta');
       }

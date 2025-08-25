@@ -281,7 +281,12 @@ const Transferencias = () => {
     if (window.confirm('¿Está seguro de eliminar esta transferencia?')) {
       try {
         await transferenciasApi.delete(id);
-        loadTransferencias();
+        try {
+          await loadTransferencias();
+        } catch (reloadError) {
+          console.error('Error al recargar datos:', reloadError);
+          // No mostrar error por recarga, ya que la eliminación fue exitosa
+        }
       } catch (error) {
         setError('Error al eliminar la transferencia');
       }

@@ -49,6 +49,17 @@ const apiRequest = async (endpoint, options = {}) => {
       }
     }
     
+    // Si la respuesta es 204 (No Content), no intentar parsear JSON
+    if (response.status === 204) {
+      return;
+    }
+    
+    // Verificar si hay contenido para parsear
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      return;
+    }
+    
     const data = await response.json();
     
     // Si la respuesta es paginada, devolver solo los results

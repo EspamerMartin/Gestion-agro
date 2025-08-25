@@ -385,15 +385,30 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
 
 const DeleteVacunoDialog = ({ open, onClose, vacuno, onDelete }) => {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Limpiar error cuando se abre/cierra el diálogo
+  useEffect(() => {
+    if (open) {
+      setError('');
+    }
+  }, [open]);
 
   const handleDelete = async () => {
     setLoading(true);
+    setError('');
     try {
       await vacunosApi.delete(vacuno.id);
-      onDelete();
-      onClose();
+      onClose(); // Cerrar diálogo primero
+      try {
+        await onDelete(); // Luego recargar datos
+      } catch (reloadError) {
+        console.error('Error al recargar datos:', reloadError);
+        // No mostrar error por recarga, ya que la eliminación fue exitosa
+      }
     } catch (err) {
       console.error('Error deleting vacuno:', err);
+      setError(err.message || 'Error al eliminar el vacuno');
     } finally {
       setLoading(false);
     }
@@ -403,6 +418,11 @@ const DeleteVacunoDialog = ({ open, onClose, vacuno, onDelete }) => {
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>Eliminar Vacuno</DialogTitle>
       <DialogContent>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
         <Typography>
           ¿Está seguro que desea eliminar el lote de vacunos <strong>{vacuno?.raza}</strong> del campo <strong>{vacuno?.campo}</strong>?
           Esta acción no se puede deshacer.

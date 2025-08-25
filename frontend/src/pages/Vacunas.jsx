@@ -163,15 +163,30 @@ const VacunaDialog = ({ open, onClose, vacuna, onSave }) => {
 
 const DeleteVacunaDialog = ({ open, onClose, vacuna, onDelete }) => {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Limpiar error cuando se abre/cierra el diálogo
+  useEffect(() => {
+    if (open) {
+      setError('');
+    }
+  }, [open]);
 
   const handleDelete = async () => {
     setLoading(true);
+    setError('');
     try {
       await vacunasApi.delete(vacuna.id);
-      onDelete();
-      onClose();
+      onClose(); // Cerrar diálogo primero
+      try {
+        await onDelete(); // Luego recargar datos
+      } catch (reloadError) {
+        console.error('Error al recargar datos:', reloadError);
+        // No mostrar error por recarga, ya que la eliminación fue exitosa
+      }
     } catch (err) {
       console.error('Error deleting vacuna:', err);
+      setError(err.message || 'Error al eliminar la vacuna');
     } finally {
       setLoading(false);
     }
@@ -181,6 +196,11 @@ const DeleteVacunaDialog = ({ open, onClose, vacuna, onDelete }) => {
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>Eliminar Vacuna</DialogTitle>
       <DialogContent>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
         <Typography>
           ¿Está seguro que desea eliminar la vacuna <strong>{vacuna?.nombre}</strong>?
           Esta acción no se puede deshacer.

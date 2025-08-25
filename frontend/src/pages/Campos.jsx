@@ -176,18 +176,32 @@ const CampoDialog = ({ open, onClose, campo, onSave }) => {
 
 const DeleteCampoDialog = ({ open, onClose, campo, onDelete }) => {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Limpiar error cuando se abre/cierra el diálogo
+  useEffect(() => {
+    if (open) {
+      setError('');
+    }
+  }, [open]);
 
   const handleDelete = async () => {
     setLoading(true);
+    setError('');
     try {
       console.log('Eliminando campo con ID:', campo.id);
       await camposApi.delete(campo.id);
       console.log('Campo eliminado exitosamente');
-      onClose();
-      // Forzar refresh inmediato
-      await onDelete();
+      onClose(); // Cerrar diálogo primero
+      try {
+        await onDelete(); // Luego recargar datos
+      } catch (reloadError) {
+        console.error('Error al recargar datos:', reloadError);
+        // No mostrar error por recarga, ya que la eliminación fue exitosa
+      }
     } catch (err) {
       console.error('Error deleting campo:', err);
+      setError(err.message || 'Error al eliminar el campo');
     } finally {
       setLoading(false);
     }
@@ -197,6 +211,11 @@ const DeleteCampoDialog = ({ open, onClose, campo, onDelete }) => {
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>Eliminar Campo</DialogTitle>
       <DialogContent>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
         <Typography>
           ¿Está seguro que desea eliminar el campo <strong>{campo?.nombre}</strong>?
           Esta acción no se puede deshacer.
