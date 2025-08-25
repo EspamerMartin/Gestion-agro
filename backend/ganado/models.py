@@ -69,7 +69,7 @@ class Vacuno(models.Model):
         Devuelve el último estado registrado del vacuno (EstadoVacuno más reciente).
         Utiliza el related_name 'historial_estados' definido en EstadoVacuno.
         """
-        return self.historial_estados.order_by('-fecha').first()
+        return self.historial_estados.order_by('-fecha', '-id').first()
     
     def campo_actual(self):
         """Devuelve el campo donde se encuentra actualmente el vacuno"""

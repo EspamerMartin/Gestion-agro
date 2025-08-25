@@ -115,6 +115,26 @@ export const vacunosApi = {
   }),
 };
 
+// API para Estados de Vacuno (historial de ciclos/estados)
+export const estadosApi = {
+  getAll: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/estados-vacuno/${queryString ? `?${queryString}` : ''}`);
+  },
+  getById: (id) => apiRequest(`/estados-vacuno/${id}/`),
+  create: (data) => apiRequest('/estados-vacuno/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  update: (id, data) => apiRequest(`/estados-vacuno/${id}/`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+  delete: (id) => apiRequest(`/estados-vacuno/${id}/`, {
+    method: 'DELETE',
+  }),
+};
+
 // API para Vacunas
 export const vacunasApi = {
   getAll: () => apiRequest('/vacunas/'),

@@ -34,7 +34,7 @@ import {
   Pets as PetsIcon,
 } from '@mui/icons-material';
 import DashboardLayout from '../layouts/DashboardLayout';
-import { vacunosApi, opcionesApi } from '../services/api';
+import { vacunosApi, opcionesApi, estadosApi } from '../services/api';
 import { formatDate, calculateAge, formatDateForInput } from '../utils';
 import { SEXO_CHOICES, CICLO_PRODUCTIVO_CHOICES, ESTADO_GENERAL_CHOICES } from '../constants';
 
@@ -44,6 +44,7 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
     raza: '',
     cantidad: 1,
     sexo: '',
+    ciclo_productivo: '',
     fecha_nacimiento: '',
     fecha_ingreso: '',
     observaciones: '',
@@ -85,6 +86,7 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
         raza: vacuno.raza || '',
         cantidad: vacuno.cantidad || 1,
         sexo: vacuno.sexo || '',
+        ciclo_productivo: vacuno.estado_actual_obj?.ciclo_productivo || '',
         fecha_nacimiento: formatDateForInput(vacuno.fecha_nacimiento) || '',
         fecha_ingreso: formatDateForInput(vacuno.fecha_ingreso) || '',
         observaciones: vacuno.observaciones || '',
@@ -97,6 +99,7 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
         raza: '',
         cantidad: 1,
         sexo: '',
+        ciclo_productivo: '',
         fecha_nacimiento: '',
         fecha_ingreso: formatDateForInput(new Date()),
         observaciones: '',
@@ -104,7 +107,7 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
       });
     }
     setError('');
-  }, [vacuno, open]);
+  }, [vacuno]);
 
   const handleChange = (e) => {
     setFormData({
@@ -132,6 +135,10 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
         setError('El sexo es requerido');
         return;
       }
+      if (!formData.ciclo_productivo) {
+        setError('El ciclo productivo es requerido');
+        return;
+      }
       if (!formData.fecha_ingreso) {
         setError('La fecha de ingreso es requerida');
         return;
@@ -153,13 +160,30 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
       console.log('Datos a enviar:', vacunoData);
 
       if (vacuno) {
-        // Al editar, NO enviamos campo_inicial
+        // Al editar, actualizar solo los campos del vacuno (sin tocar el historial de estados)
         await vacunosApi.update(vacuno.id, vacunoData);
-        
+
+        // Si cambió el ciclo productivo, crear un nuevo EstadoVacuno vía API
+        const cicloActual = vacuno.estado_actual_obj?.ciclo_productivo || '';
+        const nuevoCiclo = formData.ciclo_productivo || '';
+        if (cicloActual !== nuevoCiclo && nuevoCiclo) {
+          try {
+            await estadosApi.create({
+              vacuno: vacuno.id,
+              ciclo_productivo: nuevoCiclo,
+              estado_general: vacuno.estado_actual_obj?.estado_general || 'activo',
+              observaciones: 'Actualizado desde interfaz'
+            });
+          } catch (estadoError) {
+            console.warn('Error al crear estado:', estadoError);
+            // No fallar la actualización por error al crear el estado
+          }
+        }
+
         // Si cambió el campo, usar el endpoint específico para cambio de campo
         const campoActualId = vacuno.campo_actual_obj?.id;
         const nuevoCampoId = formData.campo ? parseInt(formData.campo) : null;
-        
+
         if (campoActualId !== nuevoCampoId && nuevoCampoId) {
           try {
             await vacunosApi.cambiarCampo(vacuno.id, nuevoCampoId);
@@ -179,7 +203,20 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
         vacunoData.campo_inicial = parseInt(formData.campo);
         console.log('Creando vacuno con campo_inicial:', vacunoData.campo_inicial);
         console.log('Datos finales a enviar:', vacunoData);
-        await vacunosApi.create(vacunoData);
+        const created = await vacunosApi.create(vacunoData);
+        // Crear estado inicial si se seleccionó un ciclo
+        if (created && formData.ciclo_productivo) {
+          try {
+            await estadosApi.create({
+              vacuno: created.id,
+              ciclo_productivo: formData.ciclo_productivo,
+              estado_general: 'activo',
+              observaciones: 'Estado inicial asignado desde interfaz'
+            });
+          } catch (estadoCreateError) {
+            console.warn('Error al crear estado inicial:', estadoCreateError);
+          }
+        }
       }
       onSave();
       onClose();
@@ -288,6 +325,25 @@ const VacunoDialog = ({ open, onClose, vacuno, onSave }) => {
                   required
                 >
                   {SEXO_CHOICES.map((choice) => (
+                    <MenuItem key={choice.value} value={choice.value}>
+                      {choice.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth margin="dense" variant="outlined">
+                <InputLabel>Ciclo Productivo</InputLabel>
+                <Select
+                  name="ciclo_productivo"
+                  value={formData.ciclo_productivo}
+                  onChange={handleChange}
+                  label="Ciclo Productivo"
+                  required
+                >
+                  {CICLO_PRODUCTIVO_CHOICES.map((choice) => (
                     <MenuItem key={choice.value} value={choice.value}>
                       {choice.label}
                     </MenuItem>
