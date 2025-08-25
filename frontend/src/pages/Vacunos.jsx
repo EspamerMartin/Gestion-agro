@@ -518,7 +518,12 @@ const Vacunos = () => {
     try {
       setLoading(true);
       const response = await vacunosApi.getAll();
-      setVacunos(response || []);
+      // Filtrar vacunos vendidos (usando tanto es_vendido como estado_general)
+      const vacunosActivos = (response || []).filter(vacuno => 
+        !vacuno.es_vendido && 
+        vacuno.estado_actual_obj?.estado_general !== 'vendido'
+      );
+      setVacunos(vacunosActivos);
     } catch (err) {
       setError('Error al cargar los vacunos');
       console.error('Error loading vacunos:', err);
