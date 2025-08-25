@@ -16,14 +16,14 @@ from .views import (
 
 # Crear el router para las APIs
 router = DefaultRouter()
-router.register(r'campos', CampoViewSet)
-router.register(r'vacunos', VacunoViewSet)
-router.register(r'estados-vacuno', EstadoVacunoViewSet)
-router.register(r'estadias', EstadiaAnimalViewSet)
-router.register(r'vacunas', VacunaViewSet)
-router.register(r'vacunaciones', VacunacionViewSet)
-router.register(r'transferencias', TransferenciaViewSet)
-router.register(r'ventas', VentaViewSet)
+router.register(r'campos', CampoViewSet, basename='campos')
+router.register(r'vacunos', VacunoViewSet, basename='vacunos')
+router.register(r'estados-vacuno', EstadoVacunoViewSet, basename='estados-vacuno')
+router.register(r'estadias', EstadiaAnimalViewSet, basename='estadias')
+router.register(r'vacunas', VacunaViewSet, basename='vacunas')
+router.register(r'vacunaciones', VacunacionViewSet, basename='vacunaciones')
+router.register(r'transferencias', TransferenciaViewSet, basename='transferencias')
+router.register(r'ventas', VentaViewSet, basename='ventas')
 router.register(r'dashboard', DashboardViewSet, basename='dashboard')
 router.register(r'opciones', OpcionesViewSet, basename='opciones')
 

@@ -1,11 +1,16 @@
+from django.contrib.auth.models import User
 from django.db import models
 
 
 class Campo(models.Model):
-    nombre = models.CharField(max_length=50, unique=True)
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='campos')
+    nombre = models.CharField(max_length=50)
     ubicacion = models.CharField(max_length=255)  # Ej: "La Pampa RN9 KM70"
     hectareas = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     descripcion = models.TextField(blank=True)
+
+    class Meta:
+        unique_together = ['usuario', 'nombre']
 
     def __str__(self):
         return self.nombre
@@ -23,6 +28,7 @@ class Vacuno(models.Model):
         ("M", "Macho"),
         ("H", "Hembra"),
     )
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vacunos')
     lote_id = models.CharField(max_length=50, help_text="Identificador del lote")
     raza = models.CharField(max_length=50)
     cantidad = models.PositiveIntegerField(default=1, help_text="Cantidad de animales en el lote")
@@ -132,6 +138,7 @@ class EstadiaAnimal(models.Model):
         return f"{self.animal} en {self.campo} desde {self.fecha_entrada}"
 
 class Vacuna(models.Model):
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vacunas')
     nombre = models.CharField(max_length=100)
     laboratorio = models.CharField(max_length=100, blank=True)
     descripcion = models.TextField(blank=True)
@@ -171,13 +178,14 @@ class Venta(models.Model):
         return f"{self.animal} vendido a {self.comprador} ({self.fecha})"
 
 class PrecioMercado(models.Model):
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='precios_mercado')
     fecha = models.DateField()
     categoria = models.CharField(max_length=50)
     precio = models.DecimalField(max_digits=10, decimal_places=2)
     
     class Meta:
         ordering = ['-fecha']
-        unique_together = ['fecha', 'categoria']
+        unique_together = ['usuario', 'fecha', 'categoria']
         verbose_name = "Precio de Mercado"
         verbose_name_plural = "Precios de Mercado"
 

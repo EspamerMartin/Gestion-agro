@@ -35,15 +35,22 @@ from .serializers import (
 
 
 class CampoViewSet(viewsets.ModelViewSet):
-    queryset = Campo.objects.all()
     serializer_class = CampoSerializer
 
+    def get_queryset(self):
+        """Filtrar campos por usuario autenticado"""
+        return Campo.objects.filter(usuario=self.request.user)
+
+    def perform_create(self, serializer):
+        """Asignar el usuario actual al crear un campo"""
+        serializer.save(usuario=self.request.user)
+
 class VacunoViewSet(viewsets.ModelViewSet):
-    queryset = Vacuno.objects.all()
     serializer_class = VacunoSerializer
 
     def get_queryset(self):
-        queryset = Vacuno.objects.all()
+        """Filtrar vacunos por usuario autenticado"""
+        queryset = Vacuno.objects.filter(usuario=self.request.user)
         campo_id = self.request.query_params.get('campo', None)
         raza = self.request.query_params.get('raza', None)
         
@@ -60,15 +67,15 @@ class VacunoViewSet(viewsets.ModelViewSet):
         return queryset
     
     def perform_create(self, serializer):
-        # Guardar el vacuno primero
-        vacuno = serializer.save()
+        # Guardar el vacuno con el usuario actual
+        vacuno = serializer.save(usuario=self.request.user)
         
         # Si se proporciona un campo_inicial, crear la estadia
         campo_inicial_id = self.request.data.get('campo_inicial')
         if campo_inicial_id:
             try:
                 from .models import EstadiaAnimal
-                campo = Campo.objects.get(id=campo_inicial_id)
+                campo = Campo.objects.get(id=campo_inicial_id, usuario=self.request.user)
                 EstadiaAnimal.objects.create(
                     animal=vacuno,
                     campo=campo,
@@ -76,7 +83,7 @@ class VacunoViewSet(viewsets.ModelViewSet):
                     observaciones=f"Ingreso inicial al campo {campo.nombre}"
                 )
             except Campo.DoesNotExist:
-                pass  # Si el campo no existe, continuar sin crear la estadia
+                pass  # Si el campo no existe o no pertenece al usuario, continuar sin crear la estadia
         
         # Crear estado inicial del vacuno
         from .models import EstadoVacuno
@@ -96,6 +103,11 @@ class VacunoViewSet(viewsets.ModelViewSet):
     def cambiar_campo(self, request, pk=None):
         """Endpoint para cambiar el campo de un vacuno mediante transferencia"""
         vacuno = self.get_object()
+        
+        # Validar que el vacuno pertenece al usuario
+        if vacuno.usuario != request.user:
+            return Response({'error': 'No tienes permiso para modificar este vacuno'}, status=status.HTTP_403_FORBIDDEN)
+            
         nuevo_campo_id = request.data.get('campo_id')
         
         if not nuevo_campo_id:
@@ -105,7 +117,7 @@ class VacunoViewSet(viewsets.ModelViewSet):
             from .models import EstadiaAnimal, Transferencia
             from datetime import date
             
-            nuevo_campo = Campo.objects.get(id=nuevo_campo_id)
+            nuevo_campo = Campo.objects.get(id=nuevo_campo_id, usuario=request.user)
             campo_actual = vacuno.campo_actual()
             
             if campo_actual and campo_actual.id == nuevo_campo.id:
@@ -143,23 +155,36 @@ class VacunoViewSet(viewsets.ModelViewSet):
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class EstadoVacunoViewSet(viewsets.ModelViewSet):
-    queryset = EstadoVacuno.objects.all()
     serializer_class = EstadoVacunoSerializer
 
+    def get_queryset(self):
+        """Filtrar estados por vacunos del usuario autenticado"""
+        return EstadoVacuno.objects.filter(vacuno__usuario=self.request.user)
+
 class EstadiaAnimalViewSet(viewsets.ModelViewSet):
-    queryset = EstadiaAnimal.objects.all()
     serializer_class = EstadiaAnimalSerializer
 
+    def get_queryset(self):
+        """Filtrar estadias por animales del usuario autenticado"""
+        return EstadiaAnimal.objects.filter(animal__usuario=self.request.user)
+
 class VacunaViewSet(viewsets.ModelViewSet):
-    queryset = Vacuna.objects.all()
     serializer_class = VacunaSerializer
 
+    def get_queryset(self):
+        """Filtrar vacunas por usuario autenticado"""
+        return Vacuna.objects.filter(usuario=self.request.user)
+
+    def perform_create(self, serializer):
+        """Asignar el usuario actual al crear una vacuna"""
+        serializer.save(usuario=self.request.user)
+
 class VacunacionViewSet(viewsets.ModelViewSet):
-    queryset = Vacunacion.objects.all()
     serializer_class = VacunacionSerializer
 
     def get_queryset(self):
-        queryset = Vacunacion.objects.all()
+        """Filtrar vacunaciones por animales del usuario autenticado"""
+        queryset = Vacunacion.objects.filter(animal__usuario=self.request.user)
         animal_id = self.request.query_params.get('animal', None)
         fecha_desde = self.request.query_params.get('fecha_desde', None)
         fecha_hasta = self.request.query_params.get('fecha_hasta', None)
@@ -175,12 +200,25 @@ class VacunacionViewSet(viewsets.ModelViewSet):
             
         return queryset.order_by('-fecha')
 
+    def perform_create(self, serializer):
+        # Validar que el animal y la vacuna pertenecen al usuario
+        animal = serializer.validated_data['animal']
+        vacuna = serializer.validated_data['vacuna']
+        if animal.usuario != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("No tienes permiso para vacunar este animal")
+        if vacuna.usuario != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("No tienes permiso para usar esta vacuna")
+        
+        serializer.save()
+
 class TransferenciaViewSet(viewsets.ModelViewSet):
-    queryset = Transferencia.objects.all()
     serializer_class = TransferenciaSerializer
 
     def get_queryset(self):
-        queryset = Transferencia.objects.all()
+        """Filtrar transferencias por animales del usuario autenticado"""
+        queryset = Transferencia.objects.filter(animal__usuario=self.request.user)
         campo_origen = self.request.query_params.get('campo_origen', None)
         campo_destino = self.request.query_params.get('campo_destino', None)
         fecha_desde = self.request.query_params.get('fecha_desde', None)
@@ -201,6 +239,19 @@ class TransferenciaViewSet(viewsets.ModelViewSet):
         return queryset.order_by('-fecha')
 
     def perform_create(self, serializer):
+        # Validar que el animal pertenece al usuario
+        animal = serializer.validated_data['animal']
+        if animal.usuario != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("No tienes permiso para transferir este animal")
+        
+        # Validar que los campos pertenecen al usuario
+        campo_origen = serializer.validated_data['campo_origen']
+        campo_destino = serializer.validated_data['campo_destino']
+        if campo_origen.usuario != self.request.user or campo_destino.usuario != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("No tienes permiso para usar estos campos")
+            
         transferencia = serializer.save()
         
         # Actualizar estadia del animal
@@ -225,11 +276,11 @@ class TransferenciaViewSet(viewsets.ModelViewSet):
         )
 
 class VentaViewSet(viewsets.ModelViewSet):
-    queryset = Venta.objects.all()
     serializer_class = VentaSerializer
 
     def get_queryset(self):
-        queryset = Venta.objects.all()
+        """Filtrar ventas por animales del usuario autenticado"""
+        queryset = Venta.objects.filter(animal__usuario=self.request.user)
         fecha_desde = self.request.query_params.get('fecha_desde', None)
         fecha_hasta = self.request.query_params.get('fecha_hasta', None)
         comprador = self.request.query_params.get('comprador', None)
@@ -246,6 +297,12 @@ class VentaViewSet(viewsets.ModelViewSet):
         return queryset.order_by('-fecha')
 
     def perform_create(self, serializer):
+        # Validar que el animal pertenece al usuario
+        animal = serializer.validated_data['animal']
+        if animal.usuario != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("No tienes permiso para vender este animal")
+            
         venta = serializer.save()
         
         # Marcar animal como vendido
@@ -274,27 +331,34 @@ class DashboardViewSet(viewsets.ViewSet):
         hoy = timezone.now().date()
         inicio_mes = hoy.replace(day=1)
         
+        # Filtrar por usuario autenticado
+        user = request.user
+        
         # Estadísticas básicas
-        total_campos = Campo.objects.count()
-        total_lotes = Vacuno.objects.count()  # Cada vacuno representa un lote
+        total_campos = Campo.objects.filter(usuario=user).count()
+        total_lotes = Vacuno.objects.filter(usuario=user).count()  # Cada vacuno representa un lote
         
         # Lotes vendidos
         lotes_vendidos = Vacuno.objects.filter(
+            usuario=user,
             historial_estados__estado_general='vendido'
         ).distinct().count()
         
         # Ventas del mes actual
         ventas_mes = Venta.objects.filter(
+            animal__usuario=user,
             fecha__gte=inicio_mes
         ).aggregate(total=Sum('precio'))['total'] or Decimal('0')
         
         # Transferencias del mes actual
         transferencias_mes = Transferencia.objects.filter(
+            animal__usuario=user,
             fecha__gte=inicio_mes
         ).count()
         
         # Vacunaciones del mes actual
         vacunaciones_mes = Vacunacion.objects.filter(
+            animal__usuario=user,
             fecha__gte=inicio_mes
         ).count()
         
@@ -304,7 +368,7 @@ class DashboardViewSet(viewsets.ViewSet):
         # Datos adicionales para el dashboard
         # Lotes por campo y animales por hectárea
         lotes_por_campo = []
-        for campo in Campo.objects.all():
+        for campo in Campo.objects.filter(usuario=user):
             total_animales = sum([vacuno.cantidad for vacuno in campo.vacunos_actuales()])
             total_lotes = campo.capacidad_actual()
             animales_por_hectarea = total_animales / float(campo.hectareas) if campo.hectareas and campo.hectareas > 0 else 0
@@ -319,7 +383,9 @@ class DashboardViewSet(viewsets.ViewSet):
         
         # Lotes por ciclo productivo
         from django.db.models import Count
-        ciclos_data = EstadoVacuno.objects.values('ciclo_productivo').annotate(
+        ciclos_data = EstadoVacuno.objects.filter(
+            vacuno__usuario=user
+        ).values('ciclo_productivo').annotate(
             count=Count('vacuno', distinct=True)
         ).filter(ciclo_productivo__isnull=False)
         
@@ -333,7 +399,7 @@ class DashboardViewSet(viewsets.ViewSet):
         
         # Densidad de animales por campo
         densidad_campos = []
-        for campo in Campo.objects.all():
+        for campo in Campo.objects.filter(usuario=user):
             total_animales = sum([vacuno.cantidad for vacuno in campo.vacunos_actuales()])
             animales_por_hectarea = total_animales / float(campo.hectareas) if campo.hectareas and campo.hectareas > 0 else 0
             densidad_recomendada = 2.0  # animales por hectárea recomendado
@@ -379,11 +445,14 @@ class OpcionesViewSet(viewsets.ViewSet):
     def all(self, request):
         """Endpoint para obtener todas las opciones necesarias para los formularios"""
         
-        # Campos disponibles
-        campos = Campo.objects.all()
+        # Filtrar por usuario autenticado
+        user = request.user
         
-        # Vacunas disponibles
-        vacunas = Vacuna.objects.all()
+        # Campos disponibles del usuario
+        campos = Campo.objects.filter(usuario=user)
+        
+        # Vacunas disponibles del usuario
+        vacunas = Vacuna.objects.filter(usuario=user)
         
         # Razas disponibles (hardcodeadas como en el frontend)
         razas_disponibles = [
