@@ -166,6 +166,7 @@ class DashboardStatsSerializer(serializers.Serializer):
 class OpcionesSerializer(serializers.Serializer):
     campos = CampoSerializer(many=True)
     vacunas = VacunaSerializer(many=True)
+    lotes = serializers.ListField(child=serializers.DictField())
     razas_disponibles = serializers.ListField(child=serializers.CharField())
     sexos_disponibles = serializers.ListField(child=serializers.DictField())
     ciclos_productivos = serializers.ListField(child=serializers.DictField())

@@ -203,7 +203,7 @@ export const opcionesApi = {
   getRazas: () => apiRequest('/opciones/all/').then(data => data?.razas_disponibles || []),
   getCampos: () => apiRequest('/campos/'),
   getVacunas: () => apiRequest('/vacunas/'),
-  getLotes: () => apiRequest('/opciones/all/').then(data => data?.vacunas || []), // Usando vacunas como "lotes" por ahora
+  getLotes: () => apiRequest('/opciones/all/').then(data => data?.lotes || []),
   getEstados: () => apiRequest('/opciones/all/').then(data => ({
     sexos: data?.sexos_disponibles || [],
     ciclos: data?.ciclos_productivos || [],

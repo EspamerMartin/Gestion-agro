@@ -29,12 +29,13 @@ import {
   Agriculture as AgricultureIcon,
 } from '@mui/icons-material';
 import DashboardLayout from '../layouts/DashboardLayout';
-import { transferenciasApi, opcionesApi, vacunosApi } from '../services/api';
+import { transferenciasApi, opcionesApi } from '../services/api';
 import { formatDate, formatDateForInput } from '../utils';
 
 const TransferenciaDialog = ({ open, onClose, onSave }) => {
   const [formData, setFormData] = useState({
-    lote_id: '',
+    animal: '',
+    campo_origen: '',
     campo_destino: '',
     fecha: formatDateForInput(new Date()),
     observaciones: '',
@@ -67,7 +68,8 @@ const TransferenciaDialog = ({ open, onClose, onSave }) => {
   useEffect(() => {
     if (!open) {
       setFormData({
-        lote_id: '',
+        animal: '',
+        campo_origen: '',
         campo_destino: '',
         fecha: formatDateForInput(new Date()),
         observaciones: '',
@@ -84,7 +86,7 @@ const TransferenciaDialog = ({ open, onClose, onSave }) => {
   };
 
   const getLoteSeleccionado = () => {
-    return lotesDisponibles.find(lote => lote.lote_id === formData.lote_id);
+    return lotesDisponibles.find(lote => lote.id === parseInt(formData.animal));
   };
 
   const getCamposDisponiblesParaDestino = () => {
@@ -115,8 +117,16 @@ const TransferenciaDialog = ({ open, onClose, onSave }) => {
         throw new Error('El lote ya se encuentra en ese campo');
       }
 
-      // Usar el endpoint de cambiar campo que ya tenemos
-      await vacunosApi.cambiarCampo(loteSeleccionado.id, parseInt(formData.campo_destino));
+      // Crear transferencia usando el endpoint de transferencias
+      const transferenciaData = {
+        animal: loteSeleccionado.id,
+        campo_origen: loteSeleccionado.campo_actual_obj?.id,
+        campo_destino: parseInt(formData.campo_destino),
+        fecha: formData.fecha,
+        observaciones: formData.observaciones,
+      };
+
+      await transferenciasApi.create(transferenciaData);
       onSave();
       onClose();
     } catch (error) {
@@ -149,16 +159,17 @@ const TransferenciaDialog = ({ open, onClose, onSave }) => {
             <Grid item xs={12}>
               <Autocomplete
                 options={lotesDisponibles || []}
-                value={lotesDisponibles?.find(lote => lote.lote_id === formData.lote_id) || null}
+                value={lotesDisponibles?.find(lote => lote.id === parseInt(formData.animal)) || null}
                 getOptionLabel={(option) => {
                   if (!option) return '';
-                  return `${option.lote_id} - ${option.raza} (${option.cantidad} animales) - Campo: ${option.campo_actual_obj?.nombre || 'Sin campo'}`;
+                  return `${option.lote_id} - ${option.raza} (${option.cantidad} animales) - Campo: ${option.campo}`;
                 }}
                 isOptionEqualToValue={(option, value) => option?.id === value?.id}
                 onChange={(event, newValue) => {
                   setFormData({ 
                     ...formData, 
-                    lote_id: newValue?.lote_id || '',
+                    animal: newValue?.id?.toString() || '',
+                    campo_origen: newValue?.campo_actual_obj?.id?.toString() || '',
                     campo_destino: '' // Reset destino cuando cambia lote
                   });
                 }}
@@ -185,7 +196,7 @@ const TransferenciaDialog = ({ open, onClose, onSave }) => {
                 onChange={(event, newValue) => {
                   setFormData({ ...formData, campo_destino: newValue?.id?.toString() || '' });
                 }}
-                disabled={!formData.lote_id}
+                disabled={!formData.animal}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -239,7 +250,7 @@ const TransferenciaDialog = ({ open, onClose, onSave }) => {
           <Button 
             type="submit" 
             variant="contained" 
-            disabled={loading || !formData.lote_id || !formData.campo_destino}
+            disabled={loading || !formData.animal || !formData.campo_destino}
             startIcon={loading ? <CircularProgress size={20} /> : <SwapHorizIcon />}
           >
             {loading ? 'Transfiriendo...' : 'Transferir Lote'}
@@ -294,7 +305,7 @@ const Transferencias = () => {
   };
 
   const getTotalAnimalesTransferidos = () => {
-    return transferencias.reduce((total, transferencia) => total + (transferencia.cantidad || 0), 0);
+    return transferencias.length; // Cada transferencia es un lote completo
   };
 
   if (loading) {
@@ -337,7 +348,7 @@ const Transferencias = () => {
             <Paper sx={{ p: 2, textAlign: 'center' }}>
               <AgricultureIcon color="secondary" sx={{ fontSize: 40, mb: 1 }} />
               <Typography variant="h6" color="secondary">
-                Animales Transferidos
+                Lotes Transferidos
               </Typography>
               <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
                 {getTotalAnimalesTransferidos()}
@@ -365,8 +376,7 @@ const Transferencias = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Fecha</TableCell>
-                  <TableCell>Raza</TableCell>
-                  <TableCell>Cantidad</TableCell>
+                  <TableCell>Lote</TableCell>
                   <TableCell>Campo Origen</TableCell>
                   <TableCell>Campo Destino</TableCell>
                   <TableCell>Observaciones</TableCell>
@@ -376,7 +386,7 @@ const Transferencias = () => {
               <TableBody>
                 {transferencias.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
+                    <TableCell colSpan={6} align="center">
                       <Typography variant="body2" color="text.secondary">
                         No hay transferencias registradas
                       </Typography>
@@ -387,11 +397,10 @@ const Transferencias = () => {
                     <TableRow key={transferencia.id}>
                       <TableCell>{formatDate(transferencia.fecha)}</TableCell>
                       <TableCell>
-                        <Chip label={transferencia.raza} size="small" variant="outlined" />
+                        <Chip label={transferencia.animal_lote_id || `ID: ${transferencia.animal}`} size="small" variant="outlined" />
                       </TableCell>
-                      <TableCell>{transferencia.cantidad}</TableCell>
-                      <TableCell>{transferencia.campo_origen}</TableCell>
-                      <TableCell>{transferencia.campo_destino}</TableCell>
+                      <TableCell>{transferencia.campo_origen_nombre}</TableCell>
+                      <TableCell>{transferencia.campo_destino_nombre}</TableCell>
                       <TableCell>{transferencia.observaciones || '-'}</TableCell>
                       <TableCell>
                         <IconButton

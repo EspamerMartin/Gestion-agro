@@ -34,12 +34,10 @@ import { formatDate, formatCurrency, formatDateForInput } from '../utils';
 
 const VentaDialog = ({ open, onClose, onSave }) => {
   const [formData, setFormData] = useState({
-    raza: '',
-    cantidad: 1,
-    campo_origen: '',
+    animal: '',
     fecha: formatDateForInput(new Date()),
     comprador: '',
-    precio_por_cabeza: '',
+    precio: '',
     destino: '',
     observaciones: '',
   });
@@ -74,12 +72,10 @@ const VentaDialog = ({ open, onClose, onSave }) => {
   useEffect(() => {
     if (!open) {
       setFormData({
-        raza: '',
-        cantidad: 1,
-        campo_origen: '',
+        animal: '',
         fecha: formatDateForInput(new Date()),
         comprador: '',
-        precio_por_cabeza: '',
+        precio: '',
         destino: '',
         observaciones: '',
       });
@@ -94,23 +90,8 @@ const VentaDialog = ({ open, onClose, onSave }) => {
     });
   };
 
-  const calcularPrecioTotal = () => {
-    const cantidad = parseFloat(formData.cantidad) || 0;
-    const precioPorCabeza = parseFloat(formData.precio_por_cabeza) || 0;
-    return cantidad * precioPorCabeza;
-  };
-
-  const getLoteDisponible = () => {
-    return lotesDisponibles.find(lote => 
-      lote.raza === formData.raza && 
-      lote.campo === formData.campo_origen &&
-      lote.estado_actual === 'activo'
-    );
-  };
-
-  const getCantidadDisponible = () => {
-    const lote = getLoteDisponible();
-    return lote ? lote.cantidad : 0;
+  const getLoteSeleccionado = () => {
+    return lotesDisponibles.find(lote => lote.id === parseInt(formData.animal));
   };
 
   const handleSubmit = async (e) => {
@@ -119,16 +100,21 @@ const VentaDialog = ({ open, onClose, onSave }) => {
     setLoading(true);
 
     try {
-      const cantidadDisponible = getCantidadDisponible();
-      if (formData.cantidad > cantidadDisponible) {
-        throw new Error(`No hay suficientes animales disponibles. Disponible: ${cantidadDisponible}`);
+      if (!formData.animal) {
+        throw new Error('Debe seleccionar un lote para vender');
+      }
+
+      if (!formData.precio || parseFloat(formData.precio) <= 0) {
+        throw new Error('Debe ingresar un precio válido');
       }
 
       const ventaData = {
-        ...formData,
-        precio_total: calcularPrecioTotal(),
-        cantidad: parseInt(formData.cantidad),
-        precio_por_cabeza: parseFloat(formData.precio_por_cabeza),
+        animal: parseInt(formData.animal),
+        fecha: formData.fecha,
+        comprador: formData.comprador,
+        precio: parseFloat(formData.precio),
+        destino: formData.destino,
+        observaciones: formData.observaciones,
       };
 
       await ventasApi.create(ventaData);
@@ -141,8 +127,7 @@ const VentaDialog = ({ open, onClose, onSave }) => {
     }
   };
 
-  const cantidadDisponible = getCantidadDisponible();
-  const precioTotal = calcularPrecioTotal();
+  const loteSeleccionado = getLoteSeleccionado();
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -162,84 +147,64 @@ const VentaDialog = ({ open, onClose, onSave }) => {
           )}
           
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12}>
               <Autocomplete
-                options={razasDisponibles}
-                value={formData.raza}
+                options={lotesDisponibles || []}
+                value={lotesDisponibles?.find(lote => lote.id === parseInt(formData.animal)) || null}
+                getOptionLabel={(option) => {
+                  if (!option) return '';
+                  return `Lote ${option.lote_id} - ${option.raza} (${option.cantidad} animales) - Campo: ${option.campo}`;
+                }}
+                isOptionEqualToValue={(option, value) => option?.id === value?.id}
                 onChange={(event, newValue) => {
-                  setFormData({ ...formData, raza: newValue || '' });
+                  setFormData({ ...formData, animal: newValue?.id?.toString() || '' });
                 }}
                 renderInput={(params) => (
                   <TextField
                     {...params}
                     margin="dense"
-                    label="Raza"
+                    label="Lote a Vender"
                     variant="outlined"
                     required
                     fullWidth
-                    helperText="Seleccione la raza de los animales a vender"
+                    helperText="Seleccione el lote completo que desea vender"
                   />
                 )}
               />
             </Grid>
             
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                options={camposDisponibles.map(campo => campo.nombre)}
-                value={formData.campo_origen}
-                onChange={(event, newValue) => {
-                  setFormData({ ...formData, campo_origen: newValue || '' });
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    margin="dense"
-                    label="Campo de Origen"
-                    variant="outlined"
-                    required
-                    fullWidth
-                    helperText="Campo donde se encuentran los animales"
-                  />
-                )}
-              />
-            </Grid>
+            {loteSeleccionado && (
+              <Grid item xs={12}>
+                <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Información del Lote Seleccionado:
+                  </Typography>
+                  <Typography variant="body2">
+                    • Raza: {loteSeleccionado.raza}
+                  </Typography>
+                  <Typography variant="body2">
+                    • Cantidad: {loteSeleccionado.cantidad} animales
+                  </Typography>
+                  <Typography variant="body2">
+                    • Campo actual: {loteSeleccionado.campo}
+                  </Typography>
+                </Paper>
+              </Grid>
+            )}
             
             <Grid item xs={12} sm={6}>
               <TextField
                 margin="dense"
-                name="cantidad"
-                label="Cantidad"
+                name="precio"
+                label="Precio Total de Venta"
                 type="number"
                 fullWidth
                 variant="outlined"
-                value={formData.cantidad}
-                onChange={handleChange}
-                required
-                inputProps={{ min: 1, max: cantidadDisponible }}
-                helperText={
-                  cantidadDisponible > 0 
-                    ? `Disponible: ${cantidadDisponible} animales`
-                    : formData.raza && formData.campo_origen 
-                      ? "No hay animales disponibles para esta combinación"
-                      : "Seleccione raza y campo para ver disponibilidad"
-                }
-                error={formData.cantidad > cantidadDisponible}
-              />
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <TextField
-                margin="dense"
-                name="precio_por_cabeza"
-                label="Precio por Cabeza"
-                type="number"
-                fullWidth
-                variant="outlined"
-                value={formData.precio_por_cabeza}
+                value={formData.precio}
                 onChange={handleChange}
                 required
                 inputProps={{ min: 0, step: 1000 }}
-                helperText={precioTotal > 0 ? `Total: ${formatCurrency(precioTotal)}` : ""}
+                helperText={loteSeleccionado ? `Precio por ${loteSeleccionado.cantidad} animales` : "Precio total de la venta"}
               />
             </Grid>
             
@@ -311,7 +276,7 @@ const VentaDialog = ({ open, onClose, onSave }) => {
           <Button 
             type="submit" 
             variant="contained" 
-            disabled={loading || formData.cantidad > cantidadDisponible || cantidadDisponible === 0}
+            disabled={loading || !formData.animal || !formData.precio}
             startIcon={loading ? <CircularProgress size={20} /> : <SellIcon />}
           >
             {loading ? 'Registrando...' : 'Registrar Venta'}
@@ -370,7 +335,7 @@ const Ventas = () => {
   };
 
   const getTotalAnimales = () => {
-    return (ventas || []).reduce((total, venta) => total + 1, 0);
+    return (ventas || []).length; // Cada venta es un lote completo
   };
 
   if (loading) {
@@ -413,7 +378,7 @@ const Ventas = () => {
             <Paper sx={{ p: 2, textAlign: 'center' }}>
               <SellIcon color="secondary" sx={{ fontSize: 40, mb: 1 }} />
               <Typography variant="h6" color="secondary">
-                Animales Vendidos
+                Lotes Vendidos
               </Typography>
               <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
                 {getTotalAnimales()}
@@ -423,7 +388,7 @@ const Ventas = () => {
           <Grid item xs={12} md={4}>
             <Paper sx={{ p: 2, textAlign: 'center' }}>
               <Typography variant="h6" color="text.secondary">
-                Precio Promedio
+                Precio Promedio por Lote
               </Typography>
               <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
                 {getTotalAnimales() > 0 
@@ -454,12 +419,9 @@ const Ventas = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Fecha</TableCell>
-                  <TableCell>Raza</TableCell>
-                  <TableCell>Cantidad</TableCell>
-                  <TableCell>Campo</TableCell>
+                  <TableCell>Lote</TableCell>
                   <TableCell>Comprador</TableCell>
-                  <TableCell>Precio/Cabeza</TableCell>
-                  <TableCell>Total</TableCell>
+                  <TableCell>Precio Total</TableCell>
                   <TableCell>Destino</TableCell>
                   <TableCell>Acciones</TableCell>
                 </TableRow>
@@ -467,7 +429,7 @@ const Ventas = () => {
               <TableBody>
                 {ventas.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} align="center">
+                    <TableCell colSpan={6} align="center">
                       <Typography variant="body2" color="text.secondary">
                         No hay ventas registradas
                       </Typography>
@@ -478,15 +440,12 @@ const Ventas = () => {
                     <TableRow key={venta.id}>
                       <TableCell>{formatDate(venta.fecha)}</TableCell>
                       <TableCell>
-                        <Chip label={venta.raza} size="small" variant="outlined" />
+                        <Chip label={venta.animal_lote_id || `ID: ${venta.animal}`} size="small" variant="outlined" />
                       </TableCell>
-                      <TableCell>{venta.cantidad}</TableCell>
-                      <TableCell>{venta.campo_origen}</TableCell>
                       <TableCell>{venta.comprador}</TableCell>
-                      <TableCell>{formatCurrency(venta.precio_por_cabeza)}</TableCell>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'success.main' }}>
-                          {formatCurrency(venta.precio_total)}
+                          {formatCurrency(venta.precio)}
                         </Typography>
                       </TableCell>
                       <TableCell>{venta.destino || '-'}</TableCell>

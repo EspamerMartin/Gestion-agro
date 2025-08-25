@@ -448,6 +448,26 @@ class OpcionesViewSet(viewsets.ViewSet):
         # Vacunas disponibles del usuario
         vacunas = Vacuna.objects.filter(usuario=user)
         
+        # Lotes disponibles (vacunos activos)
+        lotes = []
+        vacunos_activos = Vacuno.objects.filter(usuario=user)
+        for vacuno in vacunos_activos:
+            estado = vacuno.estado_actual()
+            if not estado or estado.estado_general == 'activo':
+                campo_actual = vacuno.campo_actual()
+                lotes.append({
+                    'id': vacuno.id,
+                    'lote_id': vacuno.lote_id,
+                    'raza': vacuno.raza,
+                    'cantidad': vacuno.cantidad,
+                    'campo': campo_actual.nombre if campo_actual else 'Sin campo',
+                    'campo_actual_obj': {
+                        'id': campo_actual.id if campo_actual else None,
+                        'nombre': campo_actual.nombre if campo_actual else 'Sin campo'
+                    },
+                    'estado_actual': 'activo'
+                })
+        
         # Razas disponibles (hardcodeadas como en el frontend)
         razas_disponibles = [
             "Aberdeen Angus", "Hereford", "Shorthorn", "Brahman", "Brangus",
@@ -486,6 +506,7 @@ class OpcionesViewSet(viewsets.ViewSet):
         opciones_data = {
             'campos': campos,
             'vacunas': vacunas,
+            'lotes': lotes,
             'razas_disponibles': razas_disponibles,
             'sexos_disponibles': sexos_disponibles,
             'ciclos_productivos': ciclos_productivos,
