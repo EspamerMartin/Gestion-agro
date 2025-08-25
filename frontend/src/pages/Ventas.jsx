@@ -203,7 +203,7 @@ const VentaDialog = ({ open, onClose, onSave }) => {
                 value={formData.precio}
                 onChange={handleChange}
                 required
-                inputProps={{ min: 0, step: 1000 }}
+                inputProps={{ min: 0, step: 'any' }}
                 helperText={loteSeleccionado ? `Precio por ${loteSeleccionado.cantidad} animales` : "Precio total de la venta"}
               />
             </Grid>
@@ -331,11 +331,25 @@ const Ventas = () => {
   };
 
   const getTotalVentas = () => {
-    return (ventas || []).reduce((total, venta) => total + (venta.precio || 0), 0);
+    if (!ventas || ventas.length === 0) return 0;
+    return ventas.reduce((total, venta) => {
+      const precio = parseFloat(venta.precio) || 0;
+      return total + precio;
+    }, 0);
   };
 
   const getTotalAnimales = () => {
-    return (ventas || []).length; // Cada venta es un lote completo
+    if (!ventas || ventas.length === 0) return 0;
+    return ventas.reduce((total, venta) => {
+      const cantidad = parseInt(venta.cantidad_animales) || 1;
+      return total + cantidad;
+    }, 0);
+  };
+
+  const getPromedioVentaPorLote = () => {
+    if (!ventas || ventas.length === 0) return 0;
+    const totalVentas = getTotalVentas();
+    return totalVentas / ventas.length;
   };
 
   if (loading) {
@@ -363,7 +377,7 @@ const Ventas = () => {
 
         {/* Estadísticas rápidas */}
         <Grid container spacing={3} sx={{ mb: 3 }}>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={3}>
             <Paper sx={{ p: 2, textAlign: 'center' }}>
               <AttachMoneyIcon color="primary" sx={{ fontSize: 40, mb: 1 }} />
               <Typography variant="h6" color="primary">
@@ -374,27 +388,34 @@ const Ventas = () => {
               </Typography>
             </Paper>
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={3}>
             <Paper sx={{ p: 2, textAlign: 'center' }}>
               <SellIcon color="secondary" sx={{ fontSize: 40, mb: 1 }} />
               <Typography variant="h6" color="secondary">
                 Lotes Vendidos
               </Typography>
               <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                {(ventas || []).length}
+              </Typography>
+            </Paper>
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <Paper sx={{ p: 2, textAlign: 'center' }}>
+              <Typography variant="h6" color="text.secondary">
+                Total Animales Vendidos
+              </Typography>
+              <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
                 {getTotalAnimales()}
               </Typography>
             </Paper>
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={3}>
             <Paper sx={{ p: 2, textAlign: 'center' }}>
               <Typography variant="h6" color="text.secondary">
                 Precio Promedio por Lote
               </Typography>
               <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                {getTotalAnimales() > 0 
-                  ? formatCurrency(getTotalVentas() / getTotalAnimales())
-                  : formatCurrency(0)
-                }
+                {formatCurrency(getPromedioVentaPorLote())}
               </Typography>
             </Paper>
           </Grid>
@@ -420,6 +441,8 @@ const Ventas = () => {
                 <TableRow>
                   <TableCell>Fecha</TableCell>
                   <TableCell>Lote</TableCell>
+                  <TableCell>Raza</TableCell>
+                  <TableCell>Cantidad</TableCell>
                   <TableCell>Comprador</TableCell>
                   <TableCell>Precio Total</TableCell>
                   <TableCell>Destino</TableCell>
@@ -429,7 +452,7 @@ const Ventas = () => {
               <TableBody>
                 {ventas.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
+                    <TableCell colSpan={8} align="center">
                       <Typography variant="body2" color="text.secondary">
                         No hay ventas registradas
                       </Typography>
@@ -441,6 +464,15 @@ const Ventas = () => {
                       <TableCell>{formatDate(venta.fecha)}</TableCell>
                       <TableCell>
                         <Chip label={venta.animal_lote_id || `ID: ${venta.animal}`} size="small" variant="outlined" />
+                      </TableCell>
+                      <TableCell>{venta.raza || '-'}</TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {(venta.cantidad_animales && venta.cantidad_animales > 0) 
+                            ? `${venta.cantidad_animales} animales`
+                            : '1 animal'
+                          }
+                        </Typography>
                       </TableCell>
                       <TableCell>{venta.comprador}</TableCell>
                       <TableCell>

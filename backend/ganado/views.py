@@ -295,6 +295,41 @@ class VentaViewSet(viewsets.ModelViewSet):
             fecha_salida__isnull=True
         ).update(fecha_salida=venta.fecha)
 
+    def destroy(self, request, *args, **kwargs):
+        """Método personalizado para eliminar una venta y reactivar el lote"""
+        venta = self.get_object()
+        
+        # Validar que la venta pertenece a un animal del usuario
+        if venta.animal.usuario != request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("No tienes permiso para eliminar esta venta")
+        
+        # Obtener el animal antes de eliminar la venta
+        animal = venta.animal
+        
+        # Eliminar la venta
+        venta.delete()
+        
+        # Crear un nuevo estado "activo" para el animal
+        EstadoVacuno.objects.create(
+            vacuno=animal,
+            estado_general='activo',
+            observaciones="Venta cancelada - Lote reactivado"
+        )
+        
+        # Reabrir la estadia en el campo actual si tenía una cerrada
+        # (buscar la última estadia y reabrirla si fue cerrada en la fecha de venta)
+        ultima_estadia = EstadiaAnimal.objects.filter(
+            animal=animal
+        ).order_by('-fecha_entrada').first()
+        
+        if ultima_estadia and ultima_estadia.fecha_salida:
+            ultima_estadia.fecha_salida = None
+            ultima_estadia.observaciones += " - Reabierta por cancelación de venta"
+            ultima_estadia.save()
+        
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 class DashboardViewSet(viewsets.ViewSet):
     """
     ViewSet para estadísticas del dashboard
@@ -448,12 +483,20 @@ class OpcionesViewSet(viewsets.ViewSet):
         # Vacunas disponibles del usuario
         vacunas = Vacuna.objects.filter(usuario=user)
         
-        # Lotes disponibles (vacunos activos)
+        # Lotes disponibles (vacunos activos y no vendidos)
         lotes = []
         vacunos_activos = Vacuno.objects.filter(usuario=user)
         for vacuno in vacunos_activos:
+            # Verificar que no está vendido usando múltiples métodos
             estado = vacuno.estado_actual()
-            if not estado or estado.estado_general == 'activo':
+            tiene_venta = Venta.objects.filter(animal=vacuno).exists()
+            
+            # Un lote está disponible si:
+            # 1. No tiene estado "vendido" en su estado actual
+            # 2. No existe una venta registrada para este animal
+            if (not tiene_venta and 
+                (not estado or estado.estado_general != 'vendido')):
+                
                 campo_actual = vacuno.campo_actual()
                 lotes.append({
                     'id': vacuno.id,
@@ -516,6 +559,34 @@ class OpcionesViewSet(viewsets.ViewSet):
         
         serializer = OpcionesSerializer(opciones_data)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def lotes_debug(self, request):
+        """Endpoint de debug para verificar el estado de los lotes"""
+        user = request.user
+        
+        # Obtener todos los vacunos del usuario
+        todos_vacunos = Vacuno.objects.filter(usuario=user)
+        
+        debug_info = []
+        for vacuno in todos_vacunos:
+            estado = vacuno.estado_actual()
+            tiene_venta = Venta.objects.filter(animal=vacuno).exists()
+            
+            debug_info.append({
+                'id': vacuno.id,
+                'lote_id': vacuno.lote_id,
+                'estado_actual': estado.estado_general if estado else 'sin_estado',
+                'is_vendido_method': vacuno.is_vendido(),
+                'tiene_venta_directa': tiene_venta,
+                'disponible_para_venta': not tiene_venta and (not estado or estado.estado_general != 'vendido'),
+                'campo_actual': vacuno.campo_actual().nombre if vacuno.campo_actual() else 'Sin campo'
+            })
+        
+        return Response({
+            'total_vacunos': len(todos_vacunos),
+            'debug_info': debug_info
+        })
 
 
 class UserRegistrationView(APIView):

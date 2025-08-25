@@ -137,10 +137,12 @@ class TransferenciaSerializer(serializers.ModelSerializer):
 
 class VentaSerializer(serializers.ModelSerializer):
     animal_lote_id = serializers.CharField(source='animal.lote_id', read_only=True)
+    cantidad_animales = serializers.IntegerField(source='animal.cantidad', read_only=True)
+    raza = serializers.CharField(source='animal.raza', read_only=True)
     
     class Meta:
         model = Venta
-        fields = ['id', 'animal', 'animal_lote_id', 'fecha', 
+        fields = ['id', 'animal', 'animal_lote_id', 'cantidad_animales', 'raza', 'fecha', 
                  'comprador', 'precio', 'destino', 'observaciones']
 # Serializers para estadísticas del dashboard
 class DashboardStatsSerializer(serializers.Serializer):
@@ -195,8 +197,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         # Validar formato de email
         try:
             validate_email(value)
-        except ValidationError:
-            raise serializers.ValidationError("Por favor ingrese un email válido con formato correcto (ejemplo@dominio.com)")
+        except ValidationError as e:
+            raise serializers.ValidationError("Por favor ingrese un email válido con formato correcto (ejemplo@dominio.com)") from e
         
         # Validar que no exista
         if User.objects.filter(email=value).exists():
