@@ -68,31 +68,8 @@ class VacunoViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         # Guardar el vacuno con el usuario actual
-        vacuno = serializer.save(usuario=self.request.user)
-        
-        # Si se proporciona un campo_inicial, crear la estadia
-        campo_inicial_id = self.request.data.get('campo_inicial')
-        if campo_inicial_id:
-            try:
-                from .models import EstadiaAnimal
-                campo = Campo.objects.get(id=campo_inicial_id, usuario=self.request.user)
-                EstadiaAnimal.objects.create(
-                    animal=vacuno,
-                    campo=campo,
-                    fecha_entrada=vacuno.fecha_ingreso,
-                    observaciones=f"Ingreso inicial al campo {campo.nombre}"
-                )
-            except Campo.DoesNotExist:
-                pass  # Si el campo no existe o no pertenece al usuario, continuar sin crear la estadia
-        
-        # Crear estado inicial del vacuno
-        from .models import EstadoVacuno
-        EstadoVacuno.objects.create(
-            vacuno=vacuno,
-            ciclo_productivo='ternero',  # Estado inicial por defecto
-            estado_salud='sano',
-            estado_general='activo'
-        )
+        # La lógica del campo_inicial y estado inicial se maneja en el serializer
+        serializer.save(usuario=self.request.user)
     
     def perform_update(self, serializer):
         # Solo actualizar los datos básicos del vacuno
@@ -371,14 +348,16 @@ class DashboardViewSet(viewsets.ViewSet):
         for campo in Campo.objects.filter(usuario=user):
             total_animales = sum([vacuno.cantidad for vacuno in campo.vacunos_actuales()])
             total_lotes = campo.capacidad_actual()
-            animales_por_hectarea = total_animales / float(campo.hectareas) if campo.hectareas and campo.hectareas > 0 else 0
+            animales_por_hectarea = campo.animales_por_hectarea()
+            estado_ocupacion = campo.estado_ocupacion()
             
             lotes_por_campo.append({
                 'campo': campo.nombre,
                 'lotes': total_lotes,
                 'total_animales': total_animales,
                 'hectareas': float(campo.hectareas or 0),
-                'animales_por_hectarea': round(animales_por_hectarea, 2),
+                'animales_por_hectarea': animales_por_hectarea,
+                'estado_ocupacion': estado_ocupacion,
             })
         
         # Lotes por ciclo productivo
@@ -401,17 +380,31 @@ class DashboardViewSet(viewsets.ViewSet):
         densidad_campos = []
         for campo in Campo.objects.filter(usuario=user):
             total_animales = sum([vacuno.cantidad for vacuno in campo.vacunos_actuales()])
-            animales_por_hectarea = total_animales / float(campo.hectareas) if campo.hectareas and campo.hectareas > 0 else 0
+            animales_por_hectarea = campo.animales_por_hectarea()
+            estado_ocupacion = campo.estado_ocupacion()
             densidad_recomendada = 2.0  # animales por hectárea recomendado
             porcentaje_densidad = (animales_por_hectarea / densidad_recomendada * 100) if densidad_recomendada > 0 else 0
             
             densidad_campos.append({
                 'campo': campo.nombre,
-                'densidad_actual': round(animales_por_hectarea, 2),
+                'densidad_actual': animales_por_hectarea,
                 'densidad_porcentaje': round(porcentaje_densidad, 1),
+                'estado_ocupacion': estado_ocupacion,
                 'total_animales': total_animales,
                 'hectareas': float(campo.hectareas or 0),
             })
+        
+        # Campos por estado de ocupación
+        campos_por_estado = {'baja': 0, 'media': 0, 'alta': 0}
+        for campo in Campo.objects.filter(usuario=user):
+            estado = campo.estado_ocupacion()
+            campos_por_estado[estado] += 1
+        
+        campos_por_ocupacion = [
+            {'estado': 'Baja (<0.8 animales/ha)', 'value': campos_por_estado['baja']},
+            {'estado': 'Media (0.8-2 animales/ha)', 'value': campos_por_estado['media']},
+            {'estado': 'Alta (>2 animales/ha)', 'value': campos_por_estado['alta']},
+        ]
         
         stats_data = {
             'total_campos': total_campos,
@@ -431,6 +424,7 @@ class DashboardViewSet(viewsets.ViewSet):
             'lotes_por_ciclo': lotes_por_ciclo,
             'capacidad_campos': densidad_campos,  # Actualizado con densidad
             'densidad_campos': densidad_campos,
+            'campos_por_ocupacion': campos_por_ocupacion,  # Nueva estadística
         }
         
         serializer = DashboardStatsSerializer(stats_data)

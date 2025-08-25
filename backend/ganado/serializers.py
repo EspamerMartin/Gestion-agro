@@ -19,12 +19,14 @@ class CampoSerializer(serializers.ModelSerializer):
     capacidad_actual = serializers.ReadOnlyField()
     vacunos_actuales = serializers.SerializerMethodField()
     total_animales = serializers.SerializerMethodField()
-    animales_por_hectarea = serializers.SerializerMethodField()
+    animales_por_hectarea = serializers.ReadOnlyField()
+    estado_ocupacion = serializers.ReadOnlyField()
     
     class Meta:
         model = Campo
         fields = ['id', 'nombre', 'ubicacion', 'hectareas', 'descripcion', 
-                 'capacidad_actual', 'vacunos_actuales', 'total_animales', 'animales_por_hectarea']
+                 'capacidad_actual', 'vacunos_actuales', 'total_animales', 
+                 'animales_por_hectarea', 'estado_ocupacion']
     
     def get_vacunos_actuales(self, obj):
         vacunos = obj.vacunos_actuales()
@@ -39,12 +41,6 @@ class CampoSerializer(serializers.ModelSerializer):
     
     def get_total_animales(self, obj):
         return sum([v.cantidad for v in obj.vacunos_actuales()])
-    
-    def get_animales_por_hectarea(self, obj):
-        total_animales = self.get_total_animales(obj)
-        if obj.hectareas and obj.hectareas > 0:
-            return round(total_animales / float(obj.hectareas), 2)
-        return 0
 
 class EstadoVacunoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -79,11 +75,40 @@ class VacunoSerializer(serializers.ModelSerializer):
             return {'id': campo.id, 'nombre': campo.nombre}
         return None
     
-    def validate(self, attrs):
-        # Remover campo_inicial de los datos si estamos actualizando
-        if self.instance:  # Si ya existe el objeto (actualización)
-            attrs.pop('campo_inicial', None)
-        return attrs
+    def create(self, validated_data):
+        # Extraer campo_inicial antes de crear el objeto
+        campo_inicial_id = validated_data.pop('campo_inicial', None)
+        
+        # Crear el vacuno
+        vacuno = Vacuno.objects.create(**validated_data)
+        
+        # Si se proporciona campo_inicial, crear la estadia
+        if campo_inicial_id:
+            try:
+                campo = Campo.objects.get(id=campo_inicial_id, usuario=validated_data['usuario'])
+                EstadiaAnimal.objects.create(
+                    animal=vacuno,
+                    campo=campo,
+                    fecha_entrada=vacuno.fecha_ingreso,
+                    observaciones=f"Ingreso inicial al campo {campo.nombre}"
+                )
+            except Campo.DoesNotExist:
+                pass  # Si el campo no existe o no pertenece al usuario, continuar sin crear la estadia
+        
+        # Crear estado inicial del vacuno
+        EstadoVacuno.objects.create(
+            vacuno=vacuno,
+            ciclo_productivo='ternero',  # Estado inicial por defecto
+            estado_salud='sano',
+            estado_general='activo'
+        )
+        
+        return vacuno
+    
+    def update(self, instance, validated_data):
+        # Remover campo_inicial de los datos de actualización
+        validated_data.pop('campo_inicial', None)
+        return super().update(instance, validated_data)
 
 class VacunaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -136,6 +161,7 @@ class DashboardStatsSerializer(serializers.Serializer):
     lotes_por_ciclo = serializers.ListField(child=serializers.DictField())
     capacidad_campos = serializers.ListField(child=serializers.DictField())  # Para compatibilidad
     densidad_campos = serializers.ListField(child=serializers.DictField())
+    campos_por_ocupacion = serializers.ListField(child=serializers.DictField())  # Nueva estadística
 
 class OpcionesSerializer(serializers.Serializer):
     campos = CampoSerializer(many=True)

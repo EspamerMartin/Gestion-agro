@@ -262,18 +262,30 @@ const Campos = () => {
     setDeleteDialogOpen(true);
   };
 
-  const getCapacidadColor = (capacidad) => {
-    if (!capacidad || capacidad === 0) return 'success'; // Disponible = verde
-    if (capacidad < 50) return 'info'; // Baja ocupación = azul
-    if (capacidad < 80) return 'warning'; // Media ocupación = amarillo
-    return 'error'; // Alta ocupación = rojo
+  const getEstadoOcupacionColor = (estadoOcupacion) => {
+    switch (estadoOcupacion) {
+      case 'baja':
+        return 'success'; // Verde para baja ocupación
+      case 'media':
+        return 'warning'; // Amarillo para media ocupación
+      case 'alta':
+        return 'error'; // Rojo para alta ocupación
+      default:
+        return 'default';
+    }
   };
 
-  const getCapacidadLabel = (capacidad) => {
-    if (!capacidad || capacidad === 0) return 'Disponible';
-    if (capacidad < 50) return 'Baja ocupación';
-    if (capacidad < 80) return 'Media ocupación';
-    return 'Alta ocupación';
+  const getEstadoOcupacionLabel = (estadoOcupacion) => {
+    switch (estadoOcupacion) {
+      case 'baja':
+        return 'Baja ocupación';
+      case 'media':
+        return 'Media ocupación';
+      case 'alta':
+        return 'Alta ocupación';
+      default:
+        return 'Sin datos';
+    }
   };
 
   if (loading) {
@@ -394,11 +406,13 @@ const Campos = () => {
                       {campo.animales_por_hectarea || 0}
                     </TableCell>
                     <TableCell align="center">
-                      <Chip
-                        size="small"
-                        label={getCapacidadLabel(campo.capacidad_actual)}
-                        color={getCapacidadColor(campo.capacidad_actual)}
-                      />
+                      <Tooltip title={`Densidad: ${campo.animales_por_hectarea || 0} animales/ha`}>
+                        <Chip
+                          size="small"
+                          label={getEstadoOcupacionLabel(campo.estado_ocupacion)}
+                          color={getEstadoOcupacionColor(campo.estado_ocupacion)}
+                        />
+                      </Tooltip>
                     </TableCell>
                     <TableCell align="center">
                       <Tooltip title="Editar">

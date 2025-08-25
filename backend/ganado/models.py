@@ -22,6 +22,23 @@ class Campo(models.Model):
     def capacidad_actual(self):
         """Cantidad de vacunos actualmente en el campo"""
         return self.vacunos_actuales().count()
+    
+    def animales_por_hectarea(self):
+        """Calcula la densidad de animales por hectárea"""
+        total_animales = sum([vacuno.cantidad for vacuno in self.vacunos_actuales()])
+        if self.hectareas and self.hectareas > 0:
+            return round(total_animales / float(self.hectareas), 2)
+        return 0
+    
+    def estado_ocupacion(self):
+        """Determina el estado de ocupación del campo basado en animales por hectárea"""
+        densidad = self.animales_por_hectarea()
+        if densidad < 0.8:
+            return 'baja'
+        elif 0.8 <= densidad <= 2.0:
+            return 'media'
+        else:
+            return 'alta'
 
 class Vacuno(models.Model):
     SEXO_CHOICES = (
