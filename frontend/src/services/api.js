@@ -1,9 +1,10 @@
 // Configuración base de la API
-const API_BASE_URL = 'http://127.0.0.1:8000/api';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/api').replace(/\/$/, '');
 
 // Función helper para realizar peticiones HTTP
 const apiRequest = async (endpoint, options = {}) => {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${API_BASE_URL}${normalizedEndpoint}`;
   
   // Obtener token del localStorage
   const token = localStorage.getItem('token');
