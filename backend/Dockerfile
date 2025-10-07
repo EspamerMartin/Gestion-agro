@@ -35,9 +35,10 @@ COPY frontend/ /tmp/frontend/
 RUN npm run build
 
 # Move frontend build to Django static folder
+# The build output goes to static/ which will be collected by collectstatic
 WORKDIR /app
-RUN mkdir -p static/frontend \
-    && cp -r /tmp/frontend/dist/* static/frontend/ \
+RUN mkdir -p static \
+    && cp -r /tmp/frontend/dist/* static/ \
     && rm -rf /tmp/frontend
 
 # Collect static files (Django + React build)

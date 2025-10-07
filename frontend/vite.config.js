@@ -5,5 +5,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000
-  }
+  },
+  build: {
+    outDir: 'dist',
+  },
+  // Use relative base path so assets load from same directory as index.html
+  base: './'
 })

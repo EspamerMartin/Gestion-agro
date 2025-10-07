@@ -34,11 +34,9 @@ from ganado.views import UserRegistrationView
 def health_check(request):
     return JsonResponse({'status': 'ok'})
 
-def serve_react(request, path=''):
-    """Serve React app for all non-API routes"""
-    static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'staticfiles', 'frontend')
-    if path and os.path.exists(os.path.join(static_dir, path)):
-        return serve(request, path, document_root=static_dir)
+def serve_react(request):
+    """Serve React app index.html for all non-API, non-static, non-admin routes"""
+    static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static')
     return serve(request, 'index.html', document_root=static_dir)
 
 urlpatterns = [
@@ -49,6 +47,7 @@ urlpatterns = [
     path('api/auth/register/', UserRegistrationView.as_view(), name='user_register'),
     path('api/', include('ganado.urls')),
     
-    # Catch-all: serve React app for all other routes
-    re_path(r'^(?!api/).*$', serve_react, name='react_app'),
+    # Catch-all: serve React app for routes that are not API, static files, or admin
+    # This handles client-side routing (e.g., /dashboard, /login, etc.)
+    re_path(r'^(?!api/|static/|admin/|assets/).*$', serve_react, name='react_app'),
 ]
