@@ -14,15 +14,18 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+import os
+
 from django.contrib import admin
 from django.http import JsonResponse
-from django.urls import include, path
+from django.urls import include, path, re_path
+from django.views.static import serve
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
 
 from ganado.views import UserRegistrationView
 
@@ -31,11 +34,21 @@ from ganado.views import UserRegistrationView
 def health_check(request):
     return JsonResponse({'status': 'ok'})
 
+def serve_react(request, path=''):
+    """Serve React app for all non-API routes"""
+    static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'staticfiles', 'frontend')
+    if path and os.path.exists(os.path.join(static_dir, path)):
+        return serve(request, path, document_root=static_dir)
+    return serve(request, 'index.html', document_root=static_dir)
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('health/', health_check, name='health_check'),
     path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/register/', UserRegistrationView.as_view(), name='user_register'),
-    path('', include('ganado.urls')),
+    path('api/', include('ganado.urls')),
+    
+    # Catch-all: serve React app for all other routes
+    re_path(r'^(?!api/).*$', serve_react, name='react_app'),
 ]

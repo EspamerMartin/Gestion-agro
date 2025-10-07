@@ -4,7 +4,7 @@ databases:
 
 services:
   - type: web
-    name: gestion-agro-backend
+    name: gestion-agro
     plan: free
     env: docker
     dockerfilePath: backend/Dockerfile
@@ -16,25 +16,12 @@ services:
       - key: DEBUG
         value: "False"
       - key: ALLOWED_HOSTS
-        value: localhost,127.0.0.1
-      - key: FRONTEND_URL
-        value: https://<tu-frontend>
+        sync: false
       - key: CORS_ALLOWED_ORIGINS
-        value: https://<tu-frontend>,http://localhost:5173
+        value: http://localhost:5173,http://127.0.0.1:5173
       - key: CSRF_TRUSTED_ORIGINS
-        value: https://gestion-agro-backend.onrender.com
+        sync: false
       - key: DATABASE_URL
         fromDatabase:
           name: gestion-agro-db
           property: connectionString
-
-  - type: web
-    name: gestion-agro-frontend
-    plan: free
-    env: docker
-    dockerfilePath: frontend/Dockerfile
-    autoDeploy: true
-    healthCheckPath: null
-    envVars:
-      - key: VITE_API_BASE_URL
-        value: https://gestion-agro-backend.onrender.com/api
