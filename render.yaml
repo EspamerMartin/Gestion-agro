@@ -9,10 +9,9 @@ services:
     env: docker
     dockerfilePath: backend/Dockerfile
     autoDeploy: true
-    healthCheckPath: /api/
     envVars:
       - key: SECRET_KEY
-        sync: false
+        generateValue: true
       - key: DEBUG
         value: "False"
       - key: ALLOWED_HOSTS
@@ -34,7 +33,6 @@ services:
     env: docker
     dockerfilePath: frontend/Dockerfile
     autoDeploy: true
-    healthCheckPath: /
     envVars:
       - key: VITE_API_BASE_URL
         value: https://gestion-agro-backend.onrender.com/api
