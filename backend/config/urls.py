@@ -15,6 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import include, path
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -25,6 +26,7 @@ from ganado.views import UserRegistrationView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('health/', lambda request: JsonResponse({'status': 'ok'}), name='health_check'),
     path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/register/', UserRegistrationView.as_view(), name='user_register'),
