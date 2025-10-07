@@ -17,55 +17,65 @@ Sistema completo para la gestión de ganado vacuno desarrollado con Django REST 
 - **Frontend**: React, Vite, Material-UI
 - **Base de datos**: PostgreSQL (SQLite para desarrollo)
 
-## Despliegue en Render (plan gratuito)
+## Despliegue en Render con Docker (plan gratuito)
 
-Sigue esta guía para publicar la API de Django y el frontend de React usando únicamente la interfaz de Render, sin scripts adicionales.
+El repositorio ya incluye Dockerfiles separados para backend (`backend/Dockerfile`) y frontend (`frontend/Dockerfile`). Render puede construir imágenes directamente desde cada carpeta sin guiones adicionales.
 
-### 1. Preparar repositorio y variables
+### Blueprint `render.yaml`
 
-1. Copia `.env.example` → `.env` dentro de `backend/` y ajusta los valores para tu entorno local si lo necesitas.
-2. Copia `.env.example` → `.env.local` dentro de `frontend/` para que Vite consuma tu API local durante el desarrollo.
-3. Verifica que todos los cambios estén `git push` en la rama `main` (Render leerá directamente del repositorio).
+Si prefieres automatizar la creación de servicios, usa el archivo `render.yaml` ubicado en la raíz del repositorio:
 
-### 2. Crear la base de datos PostgreSQL en Render
+1. En Render, ve a **Blueprints** → **New Blueprint Instance** y apunta al repositorio en GitHub.
+2. Render detectará la base de datos Postgres y los dos servicios web definidos en el blueprint.
+3. Ajusta los valores marcados como `<tu-frontend>` o los dominios por defecto (`gestion-agro-backend.onrender.com`) antes o después del primer deploy; puedes editarlos desde la sección **Environment** de cada servicio.
+4. Completa la provisión. Render construirá las imágenes Docker utilizando los Dockerfiles existentes.
 
-1. En Render, crea un recurso **PostgreSQL** (plan "Free") y espera a que finalice el aprovisionamiento.
-2. Anota el nombre del recurso; Render generará `DATABASE_URL`. Posteriormente lo vincularás al backend.
+### ¿Por qué Gunicorn y Whitenoise?
 
-### 3. Backend (Web Service)
+- **Gunicorn** es un servidor WSGI ligero y probado para Django. Render espera que la aplicación escuche en el puerto que expone (`PORT`); Gunicorn permite atender múltiples peticiones concurrentes en el contenedor sin usar `runserver`, que solo es apropiado para desarrollo.
+- **Whitenoise** sirve los archivos estáticos que `collectstatic` genera dentro del contenedor. Así evitas un CDN externo y mantienes un despliegue simple (ideal para el plan gratuito) sin depender de almacenamiento adicional.
 
-1. En Render crea un **Web Service** nuevo, seleccionando este repositorio y la carpeta `backend/` como raíz.
-2. Configura los campos principales:
-   - **Runtime**: Python 3.12 (o la última disponible estable).
-   - **Build Command**: `pip install -r requirements.txt && python manage.py collectstatic --noinput`
-   - **Start Command**: `gunicorn config.wsgi:application`
-3. En la sección **Environment Variables** define:
-   - `SECRET_KEY`: valor seguro que solo tú conozcas.
-   - `DEBUG`: `False`.
-   - `ALLOWED_HOSTS`: `localhost,127.0.0.1,<TU_DOMINIO_RENDER>`.
-   - `FRONTEND_URL`: URL completa (https://) del sitio frontend cuando lo tengas publicado.
-   - `CORS_ALLOWED_ORIGINS`: `https://<TU_FRONTEND>,http://localhost:5173` (puedes añadir más separados por coma).
-   - `CSRF_TRUSTED_ORIGINS`: `https://<TU_DOMINIO_RENDER>` (opcional, útil si en el futuro habilitas vistas con formularios).
-4. En **Add Environment Variable from Database**, vincula el recurso Postgres creado; Render expondrá `DATABASE_URL` y los credenciales de forma automática.
-5. Despliega el servicio. Tras el primer deploy, abre la consola **Shell** del servicio y ejecuta manualmente:
+### 1. Preparar variables y repo
+
+1. Copia `backend/.env.example` → `backend/.env` si deseas probar localmente.
+2. Copia `frontend/.env.example` → `frontend/.env.local` para que Vite apunte a tu API local durante el desarrollo.
+3. Asegúrate de subir los cambios a la rama que Render consumirá (por ejemplo, `main`).
+
+### 2. Crear la base de datos PostgreSQL
+
+1. En Render, crea un recurso **PostgreSQL** (plan "Free").
+2. Cuando termine, toma el valor de `DATABASE_URL`; Render lo inyectará después en el servicio backend al vincular la base de datos.
+
+### 3. Backend (Web Service Docker)
+
+1. Crea un nuevo **Web Service** y selecciona el repositorio con la subcarpeta `backend/` como raíz.
+2. Indica que Render utilice el `Dockerfile` existente. No es necesario definir comandos de build/start manuales; Render ejecutará lo indicado en el Dockerfile.
+3. Define las variables de entorno obligatorias en Render:
+   - `SECRET_KEY`: genera un valor seguro.
+   - `DEBUG`: `False` en producción.
+   - `ALLOWED_HOSTS`: incluye `localhost,127.0.0.1` y el dominio que Render asigne (lo verás tras el primer deploy).
+   - `FRONTEND_URL`: la URL HTTPS del frontend cuando esté listo.
+   - `CORS_ALLOWED_ORIGINS`: lista separada por comas con el dominio del frontend y, si quieres, tus dominios locales (`http://localhost:5173`, etc.).
+   - `CSRF_TRUSTED_ORIGINS`: al menos `https://<tu-dominio-backend.onrender.com>`.
+4. En **Add Environment Variable from Database**, vincula la instancia de Postgres creada; Render añadirá automáticamente `DATABASE_URL` y credenciales conexas.
+5. Lanza el deploy. Tras completarse, abre la consola **Shell** del servicio y ejecuta manualmente:
    - `python manage.py migrate`
-   - `python manage.py createsuperuser` (opcional si deseas acceso al panel admin).
-6. Cada deploy posterior reutilizará la base de datos Postgres vinculada.
+   - `python manage.py createsuperuser` (opcional).
 
-### 4. Frontend (Static Site)
+> **Nota sobre dominios:** mantener frontend y backend como servicios separados en Render simplifica monitoreo y escalado. El plan gratuito permite varios servicios, aunque pueden "hibernar" tras períodos de inactividad.
 
-1. Crea un recurso **Static Site** en Render apuntando a este repo y selecciona la carpeta `frontend/`.
-2. Define:
-   - **Build Command**: `npm install && npm run build`
-   - **Publish Directory**: `dist`
-3. En **Environment Variables** agrega:
-   - `VITE_API_BASE_URL`: URL pública del backend de Render, terminada en `/api`.
-4. Publica el sitio. La URL resultante deberás añadirla a `FRONTEND_URL` y `CORS_ALLOWED_ORIGINS` en el backend (Render redeployará automáticamente al guardar los cambios).
+### 4. Frontend (Web Service Docker con Node)
 
-### 5. Verificaciones finales
+1. Crea otro **Web Service** apuntando a la carpeta `frontend/` del mismo repositorio.
+2. Selecciona el `Dockerfile` incluido. El contenedor compila la app con Vite y la sirve usando `vite preview`, que requiere Node en tiempo de ejecución (útil cuando no se quiere un hosting estático puro).
+3. Configura las variables de entorno:
+   - `VITE_API_BASE_URL`: URL pública del backend terminada en `/api`.
+4. Render detectará el puerto expuesto y conectará el tráfico entrante al puerto que la app escuche (`PORT`).
 
-- Comprueba que `https://<tu-frontend>` sirve la aplicación React.
-- Accede desde el navegador; las peticiones deben apuntar al dominio del backend configurado.
-- Revisa los logs de ambos servicios en Render ante cualquier error (por ejemplo, falta de migraciones o CORS).
+### 5. Ajustes de CORS y verificación
 
-Con esta configuración podrás mantener desarrollo local con SQLite y producción en Render con PostgreSQL administrado, manteniendo la seguridad mediante variables de entorno.
+- Después de obtener la URL definitiva del frontend, actualiza `FRONTEND_URL` y añade el dominio a `CORS_ALLOWED_ORIGINS` en el backend desde el panel de Render. El servicio se redeployará automáticamente.
+- Comprueba los logs de ambos servicios si observas errores de CORS, autenticación o de conexión a la base.
+- Recuerda repetir `python manage.py migrate` cuando introduzcas nuevos modelos.
+
+Con esta arquitectura obtienes un despliegue completamente contenedorizado, con Postgres gestionado por Render, backend y frontend aislados pero comunicándose vía HTTPS.
