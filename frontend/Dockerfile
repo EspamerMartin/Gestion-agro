@@ -4,10 +4,10 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY frontend/package*.json ./
 RUN npm install
 
-COPY . .
+COPY frontend/ ./
 
 # Build assets so preview server can serve the compiled SPA
 RUN npm run build
