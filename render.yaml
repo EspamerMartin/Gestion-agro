@@ -9,7 +9,7 @@ services:
     env: docker
     dockerfilePath: backend/Dockerfile
     autoDeploy: true
-    healthCheckPath: null
+    healthCheckPath: /health/
     envVars:
       - key: SECRET_KEY
         generateValue: true
