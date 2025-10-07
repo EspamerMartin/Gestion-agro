@@ -1,5 +1,6 @@
 // Configuración base de la API
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/api').replace(/\/$/, '');
+// Siempre usa rutas relativas - funciona en desarrollo y producción
+const API_BASE_URL = '/api';
 
 // Función helper para realizar peticiones HTTP
 const apiRequest = async (endpoint, options = {}) => {

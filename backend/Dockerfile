@@ -31,7 +31,10 @@ COPY frontend/package*.json /tmp/frontend/
 WORKDIR /tmp/frontend
 RUN npm install
 
+# Copy all frontend files including .env.production
 COPY frontend/ /tmp/frontend/
+
+# Build frontend in production mode (uses .env.production)
 RUN npm run build
 
 # Move frontend build to Django static folder
