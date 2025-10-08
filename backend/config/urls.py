@@ -36,8 +36,22 @@ def health_check(request):
 
 def serve_react(request):
     """Serve React app index.html for all non-API, non-static, non-admin routes"""
-    static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static')
-    return serve(request, 'index.html', document_root=static_dir)
+    try:
+        # In production, staticfiles are collected to staticfiles/
+        static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'staticfiles')
+        index_path = os.path.join(static_dir, 'index.html')
+        
+        # If index.html doesn't exist in staticfiles, try static/ (development)
+        if not os.path.exists(index_path):
+            static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static')
+            index_path = os.path.join(static_dir, 'index.html')
+        
+        if not os.path.exists(index_path):
+            return JsonResponse({'error': 'Frontend not found. Run collectstatic.'}, status=500)
+        
+        return serve(request, 'index.html', document_root=static_dir)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
