@@ -28,5 +28,5 @@ router.register(r'dashboard', DashboardViewSet, basename='dashboard')
 router.register(r'opciones', OpcionesViewSet, basename='opciones')
 
 urlpatterns = [
-    path('api/', include(router.urls)),
+    path('', include(router.urls)),
 ]
