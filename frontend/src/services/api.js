@@ -2,10 +2,14 @@
 // Siempre usa rutas relativas - funciona en desarrollo y producción
 const API_BASE_URL = '/api';
 
+console.log('🔧 API_BASE_URL configurado como:', API_BASE_URL);
+
 // Función helper para realizar peticiones HTTP
 const apiRequest = async (endpoint, options = {}) => {
   const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${API_BASE_URL}${normalizedEndpoint}`;
+  
+  console.log('📡 Haciendo request a:', url);
   
   // Obtener token del localStorage
   const token = localStorage.getItem('token');
